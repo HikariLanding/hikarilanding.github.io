@@ -1,5 +1,7 @@
 /* Lantern 语义 token —— 终值与手法见 docs/adr/0002 */
 :root {
+  /* 衬线大标题栈（原型验证通过；不引入 web font——票 #3 决定） */
+  --font-serif: Georgia, 'Iowan Old Style', 'Times New Roman', serif;
   --bg: #faf4e9;
   --surface: #f3ead8;
   --text: #251f15;

@@ -31,7 +31,7 @@
 1. **强调色不复用同一色值**：暗色下换更亮更饱和的值（`#A16207` → `#F5B84C`），这是"光在夜里更像光"成立的核心；暗色底是深暖灰（`#1A1510`），不是亮色的简单反转。
 2. **光晕是 token，不是组件分叉**：光晕实现为独立定位元素（radial-gradient + `filter: blur(64px)`），颜色吃 `--glow`、透明度吃 `--glow-strength`；强调词微光用 `text-shadow` 同样绑定 `--glow`。亮色主题下 `--glow: transparent` + 强度 0，光晕自然消失，无需任何主题条件分支。
 3. **噪的边界**：模糊元素 alpha 0.16 + 微光 text-shadow 是上限观感，尚未滑向"噪"，但不宜再加强；光晕元素是静态的（不动效）。
-4. **字体方向**：衬线大标题（Georgia / Iowan Old Style 栈验证通过）+ 系统无衬线正文。是否引入 web font 在 spec 阶段定。
+4. **字体方向**：衬线大标题（Georgia / Iowan Old Style 栈验证通过）+ 系统无衬线正文。✅ web font 取舍已定（票 #3，2026-07-16）：**不引入**——系统衬线栈已达观感要求，web font 即使自托管也增加首屏载荷，与「Light, not noise」及零外部请求的红线相悖。衬线栈以 `--font-serif` token 形式落地。
 
 ### Token 结构结论
 

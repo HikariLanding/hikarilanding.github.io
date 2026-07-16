@@ -4,6 +4,21 @@ import { loadRepos } from '../lib/load-repos';
 import { selectProjects } from '../lib/projects';
 
 const projects = selectProjects(await loadRepos());
+
+const principles = [
+  {
+    title: 'Small tools, done well',
+    body: 'One job each, cared for past the point anyone would notice.',
+  },
+  {
+    title: 'Simple over clever',
+    body: "The obvious way, made pleasant. Cleverness ages badly; clarity doesn't.",
+  },
+  {
+    title: 'Light, not noise',
+    body: 'Software that illuminates, then gets out of the way.',
+  },
+];
 ---
 
 <!doctype html>
@@ -18,55 +33,167 @@ const projects = selectProjects(await loadRepos());
     />
   </head>
   <body>
-    <main>
-      <h1>HikariLanding</h1>
-      <p>Where small ideas land and become real.</p>
+    <section class="hero">
+      <div class="glow-orb" aria-hidden="true"></div>
+      <p class="wordmark">Hikari</p>
+      <h1>Small ideas <em>land</em> and become real.</h1>
+      <p class="sub">An open-source home for small software — warm, simple, quietly useful.</p>
+    </section>
 
-      <section aria-labelledby="projects-heading">
-        <h2 id="projects-heading">Projects</h2>
-        {
-          projects.length === 0 ? (
-            <p class="empty">something new is being built</p>
-          ) : (
-            <ul class="projects">
-              {projects.map((project) => (
-                <li>
-                  <a class="card" href={project.url}>
-                    <span class="card-name">{project.name}</span>
-                    {project.description && <span class="card-desc">{project.description}</span>}
-                    {project.language && <span class="card-lang">{project.language}</span>}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          )
-        }
-      </section>
-    </main>
+    <section class="principles" aria-label="Principles">
+      {
+        principles.map((principle, i) => (
+          <div class="principle">
+            <span class="num" aria-hidden="true">
+              {i + 1}
+            </span>
+            <div>
+              <h2>{principle.title}</h2>
+              <p>{principle.body}</p>
+            </div>
+          </div>
+        ))
+      }
+    </section>
+
+    <section class="projects-section" aria-labelledby="projects-heading">
+      <h2 id="projects-heading" class="projects-heading">Projects</h2>
+      {
+        projects.length === 0 ? (
+          <p class="empty">something new is being built</p>
+        ) : (
+          <ul class="projects">
+            {projects.map((project) => (
+              <li>
+                <a class="card" href={project.url}>
+                  <span class="card-name">{project.name}</span>
+                  {project.description && <span class="card-desc">{project.description}</span>}
+                  {project.language && <span class="card-lang">{project.language}</span>}
+                </a>
+              </li>
+            ))}
+          </ul>
+        )
+      }
+    </section>
   </body>
 </html>
 
 <style>
-  main {
-    max-width: 42rem;
+  /* ---- Hero（原型变体 B — Lantern） ---- */
+
+  .hero {
+    min-height: 82vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    max-width: 62rem;
     margin: 0 auto;
-    padding: 6rem 1.5rem;
+    padding: 4rem 2.5rem;
+    position: relative;
   }
 
-  main > p {
+  .glow-orb {
+    position: absolute;
+    top: 18%;
+    left: -6%;
+    width: 34rem;
+    height: 22rem;
+    max-width: 100vw;
+    background: radial-gradient(closest-side, var(--glow), transparent);
+    filter: blur(64px);
+    opacity: var(--glow-strength);
+    pointer-events: none;
+  }
+
+  .wordmark {
+    font-size: 0.85rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin: 0 0 3rem;
+  }
+
+  h1 {
+    font-family: var(--font-serif);
+    font-size: clamp(2.8rem, 7vw, 5.2rem);
+    font-weight: 500;
+    letter-spacing: -0.015em;
+    line-height: 1.15;
+    max-width: 18ch;
+    margin: 0;
+    position: relative;
+  }
+
+  h1 em {
+    font-style: italic;
+    color: var(--accent);
+    /* 强调词微光只在主题给出 glow 时出现（暗色）——ADR 0002 */
+    text-shadow: 0 0 calc(var(--glow-strength) * 24px) var(--glow);
+  }
+
+  .sub {
+    margin: 2rem 0 0;
     color: var(--text-secondary);
+    font-size: 1.05rem;
+    max-width: 46ch;
   }
 
-  section {
-    margin-top: 4rem;
+  /* ---- 三原则 ---- */
+
+  .principles {
+    max-width: 62rem;
+    margin: 0 auto;
+    padding: 5rem 2.5rem;
   }
 
-  h2 {
+  .principle {
+    display: grid;
+    grid-template-columns: 6rem 1fr;
+    gap: 2rem;
+    padding: 3rem 0;
+    border-top: 1px solid var(--border);
+    align-items: baseline;
+  }
+
+  .num {
+    font-family: var(--font-serif);
+    font-size: 2.4rem;
+    color: var(--accent);
+    opacity: 0.85;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .principle h2 {
+    font-family: var(--font-serif);
+    font-size: 1.7rem;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    margin: 0 0 0.6rem;
+  }
+
+  .principle p {
+    color: var(--text-secondary);
+    font-size: 0.98rem;
+    max-width: 52ch;
+    margin: 0;
+  }
+
+  /* ---- 项目区（票 #4 定稿的卡片） ---- */
+
+  .projects-section {
+    max-width: 62rem;
+    margin: 0 auto;
+    padding: 0 2.5rem 9rem;
+  }
+
+  .projects-heading {
     font-size: 1rem;
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--text-muted);
+    margin: 0;
   }
 
   .empty {
@@ -80,6 +207,7 @@ const projects = selectProjects(await loadRepos());
     padding: 0;
     display: grid;
     gap: 1rem;
+    max-width: 46rem;
   }
 
   .card {
@@ -110,5 +238,21 @@ const projects = selectProjects(await loadRepos());
   .card-lang {
     color: var(--text-muted);
     font-size: 0.875rem;
+  }
+
+  /* ---- 移动端 ---- */
+
+  @media (max-width: 720px) {
+    .hero,
+    .principles,
+    .projects-section {
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+    }
+
+    .principle {
+      grid-template-columns: 1fr;
+      gap: 0.5rem;
+    }
   }
 </style>

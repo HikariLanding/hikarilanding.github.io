@@ -83,6 +83,30 @@ describe('built site', () => {
   });
 });
 
+describe('hero and principles', () => {
+  it('renders the hero tagline with the emphasized word', () => {
+    expect(withProjects).toMatch(/Small ideas <em[^>]*>land<\/em> and become real\./);
+    expect(withProjects).toContain(
+      'An open-source home for small software — warm, simple, quietly useful.',
+    );
+  });
+
+  it('renders all three principles with elaborations', () => {
+    for (const principle of ['Small tools, done well', 'Simple over clever', 'Light, not noise']) {
+      expect(withProjects).toContain(principle);
+    }
+    expect(withProjects).toContain('One job each');
+  });
+
+  it('implements the glow as a dedicated blurred element bound to the glow tokens', () => {
+    // ADR 0002：光晕是 token 消费者,不是组件分叉——亮色下靠 token 值自然熄灭
+    expect(withProjects).toContain('aria-hidden="true"');
+    expect(withProjects).toMatch(/filter:\s*blur\(/);
+    expect(withProjects).toMatch(/radial-gradient\([^)]*var\(--glow\)/);
+    expect(withProjects).toMatch(/opacity:\s*var\(--glow-strength\)/);
+  });
+});
+
 describe('project section', () => {
   it('renders each Hikari Project as a card linking to its repo', () => {
     expect(withProjects).toContain('lumen');
