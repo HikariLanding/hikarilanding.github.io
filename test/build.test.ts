@@ -123,6 +123,7 @@ describe('page completeness', () => {
     const footer = withProjects.slice(withProjects.indexOf('<footer'));
     expect(footer).toContain('href="https://github.com/HikariLanding"');
     expect(footer).toContain('©');
+    // 「品牌名片」约束（CONTEXT.md）:组织人格独立,不出现关联个人账号
     expect(withProjects).not.toContain('realjarvisma');
   });
 
@@ -137,7 +138,10 @@ describe('page completeness', () => {
 
   it('runs the entry animation under a motion-safe guard only', () => {
     expect(withProjects).toMatch(/@keyframes/);
-    expect(withProjects).toMatch(/prefers-reduced-motion:\s*reduce/);
+    // 守卫块本体必须真的灭杀动画,而不只是媒体查询字符串存在
+    const guardStart = withProjects.search(/prefers-reduced-motion:\s*reduce/);
+    expect(guardStart).toBeGreaterThan(-1);
+    expect(withProjects.slice(guardStart, guardStart + 300)).toMatch(/animation:\s*none/);
   });
 });
 
