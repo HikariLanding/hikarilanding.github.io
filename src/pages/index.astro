@@ -1,5 +1,9 @@
 ---
 import '../styles/global.css';
+import { loadRepos } from '../lib/load-repos';
+import { selectProjects } from '../lib/projects';
+
+const projects = selectProjects(await loadRepos());
 ---
 
 <!doctype html>
@@ -17,6 +21,27 @@ import '../styles/global.css';
     <main>
       <h1>HikariLanding</h1>
       <p>Where small ideas land and become real.</p>
+
+      <section aria-labelledby="projects-heading">
+        <h2 id="projects-heading">Projects</h2>
+        {
+          projects.length === 0 ? (
+            <p class="empty">something new is being built</p>
+          ) : (
+            <ul class="projects">
+              {projects.map((project) => (
+                <li>
+                  <a class="card" href={project.url}>
+                    <span class="card-name">{project.name}</span>
+                    {project.description && <span class="card-desc">{project.description}</span>}
+                    {project.language && <span class="card-lang">{project.language}</span>}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )
+        }
+      </section>
     </main>
   </body>
 </html>
@@ -28,7 +53,62 @@ import '../styles/global.css';
     padding: 6rem 1.5rem;
   }
 
-  p {
+  main > p {
     color: var(--text-secondary);
+  }
+
+  section {
+    margin-top: 4rem;
+  }
+
+  h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .empty {
+    color: var(--text-muted);
+    font-style: italic;
+  }
+
+  .projects {
+    list-style: none;
+    margin: 1.5rem 0 0;
+    padding: 0;
+    display: grid;
+    gap: 1rem;
+  }
+
+  .card {
+    display: grid;
+    gap: 0.375rem;
+    padding: 1.25rem 1.5rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    text-decoration: none;
+    transition: border-color 150ms ease;
+  }
+
+  .card:hover,
+  .card:focus-visible {
+    border-color: var(--accent);
+  }
+
+  .card-name {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .card-desc {
+    color: var(--text-secondary);
+  }
+
+  .card-lang {
+    color: var(--text-muted);
+    font-size: 0.875rem;
   }
 </style>

@@ -7,7 +7,7 @@ const ROOT = new URL('..', import.meta.url).pathname;
 const DIST = join(ROOT, 'dist');
 
 /** dist 下全部文本产物（html + css）拼成一份,断言不关心 Astro 把样式内联还是外链 */
-function builtText(): string {
+function distText(): string {
   const chunks: string[] = [];
   const walk = (dir: string) => {
     for (const name of readdirSync(dir)) {
@@ -18,6 +18,17 @@ function builtText(): string {
   };
   walk(DIST);
   return chunks.join('\n');
+}
+
+/** 以指定 fixture 构建一次,返回全部文本产物（dist 会被下次构建覆盖,只留字符串） */
+function build(fixture: string): string {
+  execSync('npx astro build', {
+    cwd: ROOT,
+    stdio: 'pipe',
+    timeout: 180_000,
+    env: { ...process.env, HIKARI_REPOS_FIXTURE: join(ROOT, 'test/fixtures', fixture) },
+  });
+  return distText();
 }
 
 const TOKENS = [
@@ -32,37 +43,67 @@ const TOKENS = [
   '--glow-strength',
 ];
 
+let withProjects: string;
+let emptyOrg: string;
+
 beforeAll(() => {
-  execSync('npx astro build', { cwd: ROOT, stdio: 'pipe', timeout: 180_000 });
-}, 200_000);
+  withProjects = build('repos.json');
+  emptyOrg = build('repos-empty.json');
+}, 400_000);
 
 describe('built site', () => {
   it('produces an index page', () => {
-    const html = readFileSync(join(DIST, 'index.html'), 'utf8');
-    expect(html).toContain('HikariLanding');
+    expect(withProjects).toContain('HikariLanding');
   });
 
   it('defines every Lantern semantic token', () => {
-    const text = builtText();
     for (const token of TOKENS) {
-      expect(text, `missing token ${token}`).toContain(`${token}:`);
+      expect(withProjects, `missing token ${token}`).toContain(`${token}:`);
     }
   });
 
   it('carries both theme palettes, switched by prefers-color-scheme', () => {
-    const text = builtText();
-    expect(text).toMatch(/prefers-color-scheme:\s*dark/);
-    expect(text.toUpperCase()).toContain('#FAF4E9'); // light --bg
-    expect(text.toUpperCase()).toContain('#1A1510'); // dark --bg
+    expect(withProjects).toMatch(/prefers-color-scheme:\s*dark/);
+    expect(withProjects.toUpperCase()).toContain('#FAF4E9'); // light --bg
+    expect(withProjects.toUpperCase()).toContain('#1A1510'); // dark --bg
   });
 
-  it('makes no external requests and ships no tracking', () => {
-    const text = builtText();
-    const urls = [
-      ...[...text.matchAll(/(?:src|href)=["'](https?:\/\/[^"']+)["']/g)].map((m) => m[1]!),
-      ...[...text.matchAll(/url\(\s*["']?(https?:\/\/[^"')]+)/g)].map((m) => m[1]!),
-    ];
-    const external = urls.filter((url) => !url.startsWith('https://hikarilanding.github.io'));
-    expect(external).toEqual([]);
+  it('loads no external resources and ships no tracking', () => {
+    for (const text of [withProjects, emptyOrg]) {
+      const resources = [
+        ...[...text.matchAll(/src=["'](https?:\/\/[^"']+)["']/g)].map((m) => m[1]!),
+        ...[...text.matchAll(/<link[^>]+href=["'](https?:\/\/[^"']+)["']/g)].map((m) => m[1]!),
+        ...[...text.matchAll(/url\(\s*["']?(https?:\/\/[^"')]+)/g)].map((m) => m[1]!),
+      ];
+      const external = resources.filter(
+        (url) => !url.startsWith('https://hikarilanding.github.io'),
+      );
+      expect(external).toEqual([]);
+    }
+  });
+});
+
+describe('project section', () => {
+  it('renders each Hikari Project as a card linking to its repo', () => {
+    expect(withProjects).toContain('lumen');
+    expect(withProjects).toContain('a tiny reading-light for your terminal');
+    expect(withProjects).toContain('TypeScript');
+    expect(withProjects).toContain('href="https://github.com/HikariLanding/lumen"');
+    expect(withProjects).toContain('href="https://github.com/HikariLanding/komorebi"');
+  });
+
+  it('omits repos that are not Hikari Projects', () => {
+    expect(withProjects).not.toContain('borrowed-fork');
+    expect(withProjects).not.toContain('retired');
+    expect(withProjects).not.toContain('href="https://github.com/HikariLanding/.github"');
+  });
+
+  it('orders cards by most recent push', () => {
+    expect(withProjects.indexOf('lumen')).toBeLessThan(withProjects.indexOf('komorebi'));
+  });
+
+  it('shows the empty state when the org has no projects yet', () => {
+    expect(emptyOrg).toContain('something new is being built');
+    expect(emptyOrg).not.toContain('lumen');
   });
 });

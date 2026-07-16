@@ -3,6 +3,9 @@ name: Deploy
 on:
   push:
     branches: [main]
+  schedule:
+    # 每日重建，让项目区随组织仓库自动生长
+    - cron: '0 3 * * *'
   workflow_dispatch:
 
 permissions:
@@ -25,9 +28,11 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
+      # 测试用 fixture 构建；部署产物必须由下面这步真实数据构建产出
       - run: npm test
-      # 部署的 dist 由上一步 npm test 的 beforeAll 里 astro build 产出。
-      # 若调整测试的构建行为，必须保证本 job 仍显式产出 dist。
+      - run: npm run build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

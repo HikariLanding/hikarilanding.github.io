@@ -1,0 +1,62 @@
+[
+  {
+    "name": "komorebi",
+    "description": "sunlight through leaves, as a CLI",
+    "html_url": "https://github.com/HikariLanding/komorebi",
+    "language": "Rust",
+    "fork": false,
+    "archived": false,
+    "private": false,
+    "pushed_at": "2026-03-10T00:00:00Z"
+  },
+  {
+    "name": "lumen",
+    "description": "a tiny reading-light for your terminal",
+    "html_url": "https://github.com/HikariLanding/lumen",
+    "language": "TypeScript",
+    "fork": false,
+    "archived": false,
+    "private": false,
+    "pushed_at": "2026-07-01T00:00:00Z"
+  },
+  {
+    "name": "borrowed-fork",
+    "description": "a fork, not ours",
+    "html_url": "https://github.com/HikariLanding/borrowed-fork",
+    "language": "Go",
+    "fork": true,
+    "archived": false,
+    "private": false,
+    "pushed_at": "2026-06-01T00:00:00Z"
+  },
+  {
+    "name": "retired",
+    "description": "archived experiment",
+    "html_url": "https://github.com/HikariLanding/retired",
+    "language": "Python",
+    "fork": false,
+    "archived": true,
+    "private": false,
+    "pushed_at": "2026-05-01T00:00:00Z"
+  },
+  {
+    "name": ".github",
+    "description": "org profile",
+    "html_url": "https://github.com/HikariLanding/.github",
+    "language": null,
+    "fork": false,
+    "archived": false,
+    "private": false,
+    "pushed_at": "2026-04-01T00:00:00Z"
+  },
+  {
+    "name": "hikarilanding.github.io",
+    "description": "this site",
+    "html_url": "https://github.com/HikariLanding/hikarilanding.github.io",
+    "language": "Astro",
+    "fork": false,
+    "archived": false,
+    "private": false,
+    "pushed_at": "2026-07-16T00:00:00Z"
+  }
+]
