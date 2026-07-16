@@ -95,12 +95,14 @@ describe('hero and principles', () => {
     for (const principle of ['Small tools, done well', 'Simple over clever', 'Light, not noise']) {
       expect(withProjects).toContain(principle);
     }
-    expect(withProjects).toContain('One job each');
+    for (const elaboration of ['One job each', 'Cleverness ages badly', 'Software that illuminates']) {
+      expect(withProjects).toContain(elaboration);
+    }
   });
 
   it('implements the glow as a dedicated blurred element bound to the glow tokens', () => {
     // ADR 0002：光晕是 token 消费者,不是组件分叉——亮色下靠 token 值自然熄灭
-    expect(withProjects).toContain('aria-hidden="true"');
+    expect(withProjects).toMatch(/<div class="glow-orb"[^>]*aria-hidden="true"/);
     expect(withProjects).toMatch(/filter:\s*blur\(/);
     expect(withProjects).toMatch(/radial-gradient\([^)]*var\(--glow\)/);
     expect(withProjects).toMatch(/opacity:\s*var\(--glow-strength\)/);
