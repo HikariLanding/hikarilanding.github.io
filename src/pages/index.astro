@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css';
+import ThemeToggle from '../components/ThemeToggle.astro';
 import { loadRepos } from '../lib/load-repos';
 import { selectProjects } from '../lib/projects';
 
@@ -31,8 +32,18 @@ const principles = [
       name="description"
       content="An open-source home for small software — warm, simple, quietly useful."
     />
+    <script is:inline>
+      /* 防闪烁:首帧前应用已存的显式选择。逻辑同 src/lib/theme.ts 的 stored 分支——改动需同步 */
+      try {
+        var storedTheme = localStorage.getItem('theme');
+        if (storedTheme === 'light' || storedTheme === 'dark') {
+          document.documentElement.setAttribute('data-theme', storedTheme);
+        }
+      } catch (e) {}
+    </script>
   </head>
   <body>
+    <ThemeToggle />
     <main>
       <section class="hero">
       <div class="glow-orb" aria-hidden="true"></div>
@@ -106,6 +117,8 @@ const principles = [
     filter: blur(64px);
     opacity: var(--glow-strength);
     pointer-events: none;
+    /* 光晕本体静态(ADR 0002);此过渡只服务主题切换 */
+    transition: opacity 300ms ease;
   }
 
   .wordmark {

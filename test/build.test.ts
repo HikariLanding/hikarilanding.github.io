@@ -13,7 +13,7 @@ function distText(): string {
     for (const name of readdirSync(dir)) {
       const path = join(dir, name);
       if (statSync(path).isDirectory()) walk(path);
-      else if (/\.(html|css)$/.test(name)) chunks.push(readFileSync(path, 'utf8'));
+      else if (/\.(html|css|js)$/.test(name)) chunks.push(readFileSync(path, 'utf8'));
     }
   };
   walk(DIST);
@@ -106,6 +106,34 @@ describe('hero and principles', () => {
     expect(withProjects).toMatch(/filter:\s*blur\(/);
     expect(withProjects).toMatch(/radial-gradient\([^)]*var\(--glow\)/);
     expect(withProjects).toMatch(/opacity:\s*var\(--glow-strength\)/);
+  });
+});
+
+describe('theme switching', () => {
+  it('inlines the no-flash script inside <head>', () => {
+    const head = withProjects.slice(withProjects.indexOf('<head'), withProjects.indexOf('</head>'));
+    expect(head).toMatch(/localStorage\.getItem\(["']theme["']\)/);
+    expect(head).toContain('data-theme');
+  });
+
+  it('ships manual-override token blocks alongside the system media query', () => {
+    expect(withProjects).toMatch(/\[data-theme=["']?dark["']?\]/);
+    expect(withProjects).toMatch(/\[data-theme=["']?light["']?\]/);
+  });
+
+  it('renders a keyboard-operable toggle with an accessible name', () => {
+    expect(withProjects).toMatch(/<button[^>]*aria-label="[^"]+"/);
+    expect(withProjects).toContain('theme-toggle');
+  });
+
+  it('disables transitions under prefers-reduced-motion', () => {
+    expect(withProjects).toMatch(/prefers-reduced-motion:\s*reduce/);
+  });
+
+  it('writes no client storage key other than the theme', () => {
+    const keys = [...withProjects.matchAll(/setItem\(\s*["']([^"']+)["']/g)].map((m) => m[1]);
+    expect(keys.length).toBeGreaterThan(0);
+    expect(new Set(keys)).toEqual(new Set(['theme']));
   });
 });
 

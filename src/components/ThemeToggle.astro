@@ -1,0 +1,104 @@
+<button class="theme-toggle" aria-label="Toggle color theme">
+  <svg
+    class="icon icon-sun"
+    aria-hidden="true"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+  >
+    <circle cx="12" cy="12" r="4"></circle>
+    <path
+      d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"
+    ></path>
+  </svg>
+  <svg
+    class="icon icon-moon"
+    aria-hidden="true"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"></path>
+  </svg>
+</button>
+
+<script>
+  import { resolveTheme } from '../lib/theme';
+
+  const button = document.querySelector<HTMLButtonElement>('.theme-toggle');
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+
+  button?.addEventListener('click', () => {
+    let stored: string | null = null;
+    try {
+      stored = localStorage.getItem('theme');
+    } catch {
+      /* 隐私模式下不可用,跟随系统即可 */
+    }
+    const next = resolveTheme(stored, prefersDark.matches) === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    try {
+      localStorage.setItem('theme', next);
+    } catch {
+      /* 存不下就只影响本次浏览 */
+    }
+  });
+</script>
+
+<style>
+  .theme-toggle {
+    position: fixed;
+    top: 1.25rem;
+    right: 1.25rem;
+    z-index: 10;
+    width: 2.75rem;
+    height: 2.75rem;
+    display: grid;
+    place-items: center;
+    background: var(--surface);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    cursor: pointer;
+    transition:
+      border-color 150ms ease,
+      background-color 200ms ease,
+      transform 150ms ease;
+  }
+
+  .theme-toggle:hover,
+  .theme-toggle:focus-visible {
+    border-color: var(--accent);
+    color: var(--text);
+  }
+
+  .theme-toggle:active {
+    transform: scale(0.92);
+  }
+
+  .icon {
+    grid-area: 1 / 1;
+    width: 1.125rem;
+    height: 1.125rem;
+    transition:
+      opacity 200ms ease,
+      transform 200ms ease;
+  }
+
+  /* 图标可见性吃 --glow-strength(暗色=1 → 太阳,亮色=0 → 月亮),
+     与光晕同一手法:零主题条件分支 —— docs/adr/0002 */
+  .icon-sun {
+    opacity: var(--glow-strength);
+    transform: rotate(calc((1 - var(--glow-strength)) * 90deg));
+  }
+
+  .icon-moon {
+    opacity: calc(1 - var(--glow-strength));
+    transform: rotate(calc(var(--glow-strength) * -90deg));
+  }
+</style>

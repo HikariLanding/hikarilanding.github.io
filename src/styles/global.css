@@ -2,6 +2,7 @@
 :root {
   /* 衬线大标题栈（原型验证通过；不引入 web font——票 #3 决定） */
   --font-serif: Georgia, 'Iowan Old Style', 'Times New Roman', serif;
+
   --bg: #faf4e9;
   --surface: #f3ead8;
   --text: #251f15;
@@ -13,8 +14,21 @@
   --glow-strength: 0;
 }
 
+/* 暗色块出现两次（手动覆盖 + 跟随系统）,值必须同步修改 —— 唯一的复制点 */
+:root[data-theme='dark'] {
+  --bg: #1a1510;
+  --surface: #241d15;
+  --text: #f0e8d8;
+  --text-secondary: #b0a489;
+  --text-muted: #7c7159;
+  --border: #332a1e;
+  --accent: #f5b84c;
+  --glow: rgba(245, 184, 76, 0.16);
+  --glow-strength: 1;
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --bg: #1a1510;
     --surface: #241d15;
     --text: #f0e8d8;
@@ -37,4 +51,17 @@ body {
   color: var(--text);
   font-family: system-ui, -apple-system, sans-serif;
   line-height: 1.6;
+  /* 主题切换过渡（票 #5 定稿）:短、柔、可中断 */
+  transition:
+    background-color 200ms ease,
+    color 200ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
 }
