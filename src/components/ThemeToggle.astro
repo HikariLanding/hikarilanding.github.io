@@ -28,24 +28,43 @@
 </button>
 
 <script>
-  import { resolveTheme } from '../lib/theme';
+  import { resolveTheme, type Theme } from '../lib/theme';
 
+  const root = document.documentElement;
   const button = document.querySelector<HTMLButtonElement>('.theme-toggle');
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
 
+  const systemTheme = (): Theme => (prefersDark.matches ? 'dark' : 'light');
+  /* 「当前主题」以 DOM 为准——localStorage 可能不可用(隐私模式)或已被其它标签页改写 */
+  const currentTheme = (): Theme => resolveTheme(root.getAttribute('data-theme'), prefersDark.matches);
+
   button?.addEventListener('click', () => {
-    let stored: string | null = null;
-    try {
-      stored = localStorage.getItem('theme');
-    } catch {
-      /* 隐私模式下不可用,跟随系统即可 */
+    const next = currentTheme() === 'dark' ? 'light' : 'dark';
+    if (next === systemTheme()) {
+      /* 切回系统侧 = 回到「跟随系统」:清除显式选择,OS 换主题时继续跟随 */
+      root.removeAttribute('data-theme');
+      try {
+        localStorage.removeItem('theme');
+      } catch {
+        /* 存储不可用只影响持久化,本页已生效 */
+      }
+    } else {
+      root.setAttribute('data-theme', next);
+      try {
+        localStorage.setItem('theme', next);
+      } catch {
+        /* 同上 */
+      }
     }
-    const next = resolveTheme(stored, prefersDark.matches) === 'dark' ? 'light' : 'dark';
-    document.documentElement.dataset.theme = next;
-    try {
-      localStorage.setItem('theme', next);
-    } catch {
-      /* 存不下就只影响本次浏览 */
+  });
+
+  /* 多标签页同步:别的标签页改了选择,本页跟着走 */
+  window.addEventListener('storage', (event) => {
+    if (event.key !== 'theme') return;
+    if (event.newValue === 'light' || event.newValue === 'dark') {
+      root.setAttribute('data-theme', event.newValue);
+    } else {
+      root.removeAttribute('data-theme');
     }
   });
 </script>

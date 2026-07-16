@@ -14,7 +14,9 @@
   --glow-strength: 0;
 }
 
-/* 暗色块出现两次（手动覆盖 + 跟随系统）,值必须同步修改 —— 唯一的复制点 */
+/* 暗色 token 块出现两次（下方手动覆盖 + 媒体查询内跟随系统）,
+   连同 docs/adr/0002 色表共三处,改值必须同步。
+   另一处已知同步点:主题判定逻辑 src/lib/theme.ts ↔ index.astro 防闪烁内联脚本 */
 :root[data-theme='dark'] {
   --bg: #1a1510;
   --surface: #241d15;
