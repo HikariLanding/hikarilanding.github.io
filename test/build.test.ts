@@ -57,10 +57,12 @@ describe('built site', () => {
   });
 
   it('makes no external requests and ships no tracking', () => {
-    const html = readFileSync(join(DIST, 'index.html'), 'utf8');
-    const external = [...html.matchAll(/(?:src|href)=["'](https?:\/\/[^"']+)["']/g)]
-      .map((m) => m[1])
-      .filter((url) => !url!.startsWith('https://hikarilanding.github.io'));
+    const text = builtText();
+    const urls = [
+      ...[...text.matchAll(/(?:src|href)=["'](https?:\/\/[^"']+)["']/g)].map((m) => m[1]!),
+      ...[...text.matchAll(/url\(\s*["']?(https?:\/\/[^"')]+)/g)].map((m) => m[1]!),
+    ];
+    const external = urls.filter((url) => !url.startsWith('https://hikarilanding.github.io'));
     expect(external).toEqual([]);
   });
 });
