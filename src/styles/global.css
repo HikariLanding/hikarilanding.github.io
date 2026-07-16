@@ -1,0 +1,38 @@
+/* Lantern 语义 token —— 终值与手法见 docs/adr/0002 */
+:root {
+  --bg: #faf4e9;
+  --surface: #f3ead8;
+  --text: #251f15;
+  --text-secondary: #5e5544;
+  --text-muted: #92876f;
+  --border: #e7dcc2;
+  --accent: #a16207;
+  --glow: transparent;
+  --glow-strength: 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1510;
+    --surface: #241d15;
+    --text: #f0e8d8;
+    --text-secondary: #b0a489;
+    --text-muted: #7c7159;
+    --border: #332a1e;
+    --accent: #f5b84c;
+    --glow: rgba(245, 184, 76, 0.16);
+    --glow-strength: 1;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, sans-serif;
+  line-height: 1.6;
+}
