@@ -6,6 +6,9 @@ import { selectProjects } from '../lib/projects';
 
 const projects = selectProjects(await loadRepos());
 
+const description = 'An open-source home for small software — warm, simple, quietly useful.';
+const year = new Date().getFullYear();
+
 const principles = [
   {
     title: 'Small tools, done well',
@@ -28,10 +31,12 @@ const principles = [
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>HikariLanding</title>
-    <meta
-      name="description"
-      content="An open-source home for small software — warm, simple, quietly useful."
-    />
+    <meta name="description" content={description} />
+    <meta property="og:title" content="HikariLanding" />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={Astro.site} />
+    <meta property="og:type" content="website" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <script is:inline>
       /* 防闪烁:首帧前应用已存的显式选择。逻辑同 src/lib/theme.ts 的 stored 分支——改动需同步 */
       try {
@@ -89,6 +94,11 @@ const principles = [
       }
       </section>
     </main>
+
+    <footer>
+      <p>© {year} HikariLanding</p>
+      <a href="https://github.com/HikariLanding">GitHub</a>
+    </footer>
   </body>
 </html>
 
@@ -255,12 +265,74 @@ const principles = [
     font-size: 0.875rem;
   }
 
+  /* ---- Footer ---- */
+
+  footer {
+    max-width: 62rem;
+    margin: 0 auto;
+    padding: 2.5rem 2.5rem 3.5rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+  }
+
+  footer p {
+    margin: 0;
+  }
+
+  footer a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    border-bottom: 1px solid var(--border);
+    transition:
+      color 150ms ease,
+      border-color 150ms ease;
+  }
+
+  footer a:hover,
+  footer a:focus-visible {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  /* ---- 入场动效（票 #6 定稿）:仅 Hero 首屏,轻 fade-up,一次性;
+     glow-orb 不参与(ADR 0002 静态条款);reduced-motion 由全局规则禁用 ---- */
+
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .wordmark,
+  h1,
+  .sub {
+    animation: fade-up 600ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  }
+
+  h1 {
+    animation-delay: 80ms;
+  }
+
+  .sub {
+    animation-delay: 160ms;
+  }
+
   /* ---- 移动端 ---- */
 
   @media (max-width: 720px) {
     .hero,
     .principles,
-    .projects-section {
+    .projects-section,
+    footer {
       padding-left: 1.5rem;
       padding-right: 1.5rem;
     }

@@ -109,6 +109,38 @@ describe('hero and principles', () => {
   });
 });
 
+describe('page completeness', () => {
+  it('contains all four sections in order: hero, principles, projects, footer', () => {
+    const anchors = ['class="hero"', 'aria-label="Principles"', 'id="projects-heading"', '<footer'];
+    const positions = anchors.map((a) => withProjects.indexOf(a));
+    for (const [i, pos] of positions.entries()) {
+      expect(pos, `missing section anchor ${anchors[i]}`).toBeGreaterThan(-1);
+    }
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+  });
+
+  it('has a footer with the org GitHub link, a copyright, and no personal signature', () => {
+    const footer = withProjects.slice(withProjects.indexOf('<footer'));
+    expect(footer).toContain('href="https://github.com/HikariLanding"');
+    expect(footer).toContain('©');
+    expect(withProjects).not.toContain('realjarvisma');
+  });
+
+  it('ships meta description, OG tags, and a favicon', () => {
+    const head = withProjects.slice(withProjects.indexOf('<head'), withProjects.indexOf('</head>'));
+    expect(head).toContain('name="description"');
+    expect(head).toContain('property="og:title"');
+    expect(head).toContain('property="og:description"');
+    expect(head).toContain('property="og:url"');
+    expect(head).toMatch(/<link rel="icon"/);
+  });
+
+  it('runs the entry animation under a motion-safe guard only', () => {
+    expect(withProjects).toMatch(/@keyframes/);
+    expect(withProjects).toMatch(/prefers-reduced-motion:\s*reduce/);
+  });
+});
+
 describe('theme switching', () => {
   it('inlines the no-flash script inside <head>', () => {
     const head = withProjects.slice(withProjects.indexOf('<head'), withProjects.indexOf('</head>'));
