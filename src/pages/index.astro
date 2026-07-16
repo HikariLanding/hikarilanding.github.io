@@ -243,12 +243,25 @@ const principles = [
     border: 1px solid var(--border);
     border-radius: 0.75rem;
     text-decoration: none;
-    transition: border-color 150ms ease;
+    transition:
+      border-color 150ms ease,
+      transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .card:hover,
   .card:focus-visible {
     border-color: var(--accent);
+  }
+
+  /* 悬停位移只给真指针设备;按压反馈触屏同样受益 */
+  @media (hover: hover) and (pointer: fine) {
+    .card:hover {
+      transform: translateY(-2px);
+    }
+  }
+
+  .card:active {
+    transform: scale(0.99);
   }
 
   .card-name {
