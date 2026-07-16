@@ -59,6 +59,14 @@ describe('selectProjects — 「Hikari 项目」规则 (CONTEXT.md)', () => {
     expect(picked[0]).toMatchObject({ name: 'bare', description: null, language: null });
   });
 
+  it('sorts never-pushed repos (pushed_at: null) last, deterministically', () => {
+    const picked = selectProjects([
+      repo({ name: 'unborn', pushed_at: null }),
+      repo({ name: 'active', pushed_at: '2026-07-01T00:00:00Z' }),
+    ]);
+    expect(picked.map((p) => p.name)).toEqual(['active', 'unborn']);
+  });
+
   it('returns [] for an empty org', () => {
     expect(selectProjects([])).toEqual([]);
   });

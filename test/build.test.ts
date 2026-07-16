@@ -93,9 +93,9 @@ describe('project section', () => {
   });
 
   it('omits repos that are not Hikari Projects', () => {
-    expect(withProjects).not.toContain('borrowed-fork');
-    expect(withProjects).not.toContain('retired');
-    expect(withProjects).not.toContain('href="https://github.com/HikariLanding/.github"');
+    for (const excluded of ['borrowed-fork', 'retired', '.github']) {
+      expect(withProjects).not.toContain(`href="https://github.com/HikariLanding/${excluded}"`);
+    }
   });
 
   it('orders cards by most recent push', () => {

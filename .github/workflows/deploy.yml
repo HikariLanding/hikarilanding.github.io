@@ -4,7 +4,9 @@ on:
   push:
     branches: [main]
   schedule:
-    # 每日重建，让项目区随组织仓库自动生长
+    # 每日重建，让项目区随组织仓库自动生长。
+    # 注意：仓库 60 天无提交活动后 GitHub 会自动禁用 schedule 触发，
+    # 长期静默时需在 Actions 页手动重新启用（或提交任意变更）。
     - cron: '0 3 * * *'
   workflow_dispatch:
 

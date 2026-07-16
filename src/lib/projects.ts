@@ -7,7 +7,8 @@ export interface Repo {
   fork: boolean;
   archived: boolean;
   private: boolean;
-  pushed_at: string;
+  /** 从未 push 过的仓库,GitHub API 返回 null */
+  pushed_at: string | null;
 }
 
 /** 项目区卡片消费的数据 */
@@ -25,13 +26,18 @@ const EXCLUDED_NAMES = new Set(['.github', 'hikarilanding.github.io']);
  * 「Hikari 项目」规则的唯一实现点,边界定义见 CONTEXT.md:
  * 公开、非 fork、非 archived,排除 .github 与官网仓库,按最近推送排序。
  */
+/** null（从未 push）排在最后 */
+function pushedAt(repo: Repo): number {
+  return repo.pushed_at ? Date.parse(repo.pushed_at) : 0;
+}
+
 export function selectProjects(repos: Repo[]): Project[] {
   return repos
     .filter(
       (repo) =>
         !repo.private && !repo.fork && !repo.archived && !EXCLUDED_NAMES.has(repo.name),
     )
-    .sort((a, b) => Date.parse(b.pushed_at) - Date.parse(a.pushed_at))
+    .sort((a, b) => pushedAt(b) - pushedAt(a))
     .map((repo) => ({
       name: repo.name,
       description: repo.description,
