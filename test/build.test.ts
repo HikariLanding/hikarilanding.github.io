@@ -7,28 +7,36 @@ const ROOT = new URL('..', import.meta.url).pathname;
 const DIST = join(ROOT, 'dist');
 
 /** dist 下全部文本产物（html + css）拼成一份,断言不关心 Astro 把样式内联还是外链 */
-function distText(): string {
+function distText(pattern = /\.(html|css|js)$/): string {
   const chunks: string[] = [];
   const walk = (dir: string) => {
     for (const name of readdirSync(dir)) {
       const path = join(dir, name);
       if (statSync(path).isDirectory()) walk(path);
-      else if (/\.(html|css|js)$/.test(name)) chunks.push(readFileSync(path, 'utf8'));
+      else if (pattern.test(name)) chunks.push(readFileSync(path, 'utf8'));
     }
   };
   walk(DIST);
   return chunks.join('\n');
 }
 
+/** 仅样式文本:外链 css 文件 + html 内联 <style> 块——动效断言只查样式,不误伤 JS/文案 */
+function distCss(): string {
+  const styleBlocks = [...distText(/\.html$/).matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map(
+    (m) => m[1]!,
+  );
+  return [distText(/\.css$/), ...styleBlocks].join('\n');
+}
+
 /** 以指定 fixture 构建一次,返回全部文本产物（dist 会被下次构建覆盖,只留字符串） */
-function build(fixture: string): string {
+function build(fixture: string): { all: string; css: string } {
   execSync('npx astro build', {
     cwd: ROOT,
     stdio: 'pipe',
     timeout: 180_000,
     env: { ...process.env, HIKARI_REPOS_FIXTURE: join(ROOT, 'test/fixtures', fixture) },
   });
-  return distText();
+  return { all: distText(), css: distCss() };
 }
 
 const TOKENS = [
@@ -43,12 +51,16 @@ const TOKENS = [
   '--glow-strength',
 ];
 
+// docs/adr/0003 定稿的 motion token 表——全站唯一动效值来源
+const MOTION_TOKENS = ['--ease-out', '--dur-press', '--dur-fast', '--dur-ui', '--dur-glow'];
+
 let withProjects: string;
+let withProjectsCss: string;
 let emptyOrg: string;
 
 beforeAll(() => {
-  withProjects = build('repos.json');
-  emptyOrg = build('repos-empty.json');
+  ({ all: withProjects, css: withProjectsCss } = build('repos.json'));
+  emptyOrg = build('repos-empty.json').all;
 }, 400_000);
 
 describe('built site', () => {
@@ -136,12 +148,53 @@ describe('page completeness', () => {
     expect(head).toMatch(/<link rel="icon"/);
   });
 
-  it('runs the entry animation under a motion-safe guard only', () => {
-    expect(withProjects).toMatch(/@keyframes/);
-    // 守卫块本体必须真的灭杀动画,而不只是媒体查询字符串存在
-    const guardStart = withProjects.search(/prefers-reduced-motion:\s*reduce/);
+});
+
+describe('motion system', () => {
+  it('defines every motion token and consumes them instead of literals', () => {
+    for (const token of MOTION_TOKENS) {
+      expect(withProjectsCss, `missing token ${token}`).toContain(`${token}:`);
+    }
+    // --dur-press 定稿入表但由票⑧「按压节拍」消费,本票只断言定义
+    for (const token of ['--ease-out', '--dur-fast', '--dur-ui', '--dur-glow']) {
+      expect(withProjectsCss, `token ${token} never consumed`).toContain(`var(${token})`);
+    }
+  });
+
+  it('confines duration/easing literals to token definitions and the entry keyframes', () => {
+    const outsideTable = withProjectsCss
+      .replace(/--(?:dur-[a-z]+|ease-out):[^;}]+/g, '') // token 定义本身
+      .replace(/animation:[^;}]*fade-(?:up|in)[^;}]*/g, '') // 入场 600ms / 降级 300ms:一次性 keyframes 值,定稿不入 token
+      .replace(/animation-delay:[^;}]+/g, ''); // 入场 stagger,同属例外
+    expect(outsideTable).not.toMatch(/cubic-bezier/);
+    // 压缩器会把 150ms 写成 .15s,两种形态都不允许残留
+    expect(outsideTable.match(/[\s:,(]\.?\d+(?:\.\d+)?m?s\b/g) ?? []).toEqual([]);
+  });
+
+  it('runs the hero entry as a one-shot fade-up on the entry-exempt duration', () => {
+    expect(withProjectsCss).toMatch(/@keyframes fade-up/);
+    expect(withProjectsCss).toMatch(/animation:\s*fade-up\s+(?:600ms|\.6s)\s+var\(--ease-out\)/);
+  });
+
+  it('keeps color transitions under reduced motion so theme switching stays a soft fade', () => {
+    // 分级降级(ADR 0003,修订 0002 的全站禁用):不再有一刀切 transition:none
+    expect(withProjectsCss).not.toMatch(/transition:\s*none/);
+    const guardStart = withProjectsCss.search(/prefers-reduced-motion:\s*reduce/);
     expect(guardStart).toBeGreaterThan(-1);
-    expect(withProjects.slice(guardStart, guardStart + 300)).toMatch(/animation:\s*none/);
+    const guard = withProjectsCss.slice(guardStart, guardStart + 400);
+    expect(guard).toMatch(
+      /transition-property:\s*color\s*,\s*background-color\s*,\s*border-color\s*,\s*opacity\s*!important/,
+    );
+    expect(guard).toMatch(/animation:\s*none\s*!important/);
+  });
+
+  it('degrades the hero entry to a pure opacity fade under reduced motion', () => {
+    const keyframes = withProjectsCss.match(/@keyframes fade-in\s*\{[\s\S]*?\}\s*\}/)?.[0];
+    expect(keyframes, 'missing fade-in keyframes').toBeTruthy();
+    expect(keyframes).toContain('opacity');
+    expect(keyframes).not.toMatch(/transform|translate/);
+    // 降级动画必须以 !important 压过全局灭杀,否则 RM 下 hero 变硬现
+    expect(withProjectsCss).toMatch(/animation:\s*fade-in\s[^;}]*!important/);
   });
 });
 
@@ -162,8 +215,10 @@ describe('theme switching', () => {
     expect(withProjects).toContain('theme-toggle');
   });
 
-  it('disables transitions under prefers-reduced-motion', () => {
-    expect(withProjects).toMatch(/prefers-reduced-motion:\s*reduce/);
+  it('crossfades the page colors on the ui beat when the theme flips', () => {
+    expect(withProjectsCss).toMatch(
+      /body\s*\{[^}]*transition:\s*background-color var\(--dur-ui\) ease,\s*color var\(--dur-ui\) ease/,
+    );
   });
 
   it('writes no client storage key other than the theme', () => {

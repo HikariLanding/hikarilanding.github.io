@@ -3,6 +3,15 @@
   /* 衬线大标题栈（原型验证通过；不引入 web font——票 #3 决定） */
   --font-serif: Georgia, 'Iowan Old Style', 'Times New Roman', serif;
 
+  /* Motion token（docs/adr/0003 定稿表）——全站唯一动效值来源,新动效禁止表外字面量。
+     唯一例外:入场动效的一次性值(600ms / 降级 300ms / stagger 延迟)不入 token。
+     --dur-press 由「按压节拍」条款消费(票⑧),先随表定义 */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-press: 100ms;
+  --dur-fast: 150ms;
+  --dur-ui: 200ms;
+  --dur-glow: 300ms;
+
   --bg: #faf4e9;
   --surface: #f3ead8;
   --text: #251f15;
@@ -55,15 +64,21 @@ body {
   line-height: 1.6;
   /* 主题切换过渡（票 #5 定稿）:短、柔、可中断 */
   transition:
-    background-color 200ms ease,
-    color 200ms ease;
+    background-color var(--dur-ui) ease,
+    color var(--dur-ui) ease;
 }
 
+/* 分级 reduced-motion（ADR 0003,修订 0002 的全站禁用）:
+   位移/形变全禁——transform 不进保留清单,变更即时生效;
+   color / background-color / border-color / opacity 过渡保留——
+   主题切换对前庭敏感用户仍是柔和渐变,而非整页硬切。
+   keyframes 全灭;唯一例外(hero 入场纯 opacity 降级)在 index.astro
+   以更高特异性 + !important 覆写本条 */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
-    transition: none !important;
+    transition-property: color, background-color, border-color, opacity !important;
     animation: none !important;
   }
 }

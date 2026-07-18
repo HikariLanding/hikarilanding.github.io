@@ -127,8 +127,8 @@ const principles = [
     filter: blur(64px);
     opacity: var(--glow-strength);
     pointer-events: none;
-    /* 光晕本体静态(ADR 0002);此过渡只服务主题切换 */
-    transition: opacity 300ms ease;
+    /* 光晕本体静态(ADR 0002);此过渡只服务主题切换——光比纸慢半拍,唯一例外拍(ADR 0003) */
+    transition: opacity var(--dur-glow) ease;
   }
 
   .wordmark {
@@ -243,9 +243,10 @@ const principles = [
     border: 1px solid var(--border);
     border-radius: 0.75rem;
     text-decoration: none;
+    /* 原 160ms 收编进 --dur-fast:150/160 之差不可辨,表外值不留——ADR 0003 */
     transition:
-      border-color 150ms ease,
-      transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+      border-color var(--dur-fast) ease,
+      transform var(--dur-fast) var(--ease-out);
   }
 
   .card:hover,
@@ -301,8 +302,8 @@ const principles = [
     text-decoration: none;
     border-bottom: 1px solid var(--border);
     transition:
-      color 150ms ease,
-      border-color 150ms ease;
+      color var(--dur-fast) ease,
+      border-color var(--dur-fast) ease;
   }
 
   footer a:hover,
@@ -312,7 +313,8 @@ const principles = [
   }
 
   /* ---- 入场动效（票 #6 定稿）:仅 Hero 首屏,轻 fade-up,一次性;
-     glow-orb 不参与(ADR 0002 静态条款);reduced-motion 由全局规则禁用 ---- */
+     glow-orb 不参与(ADR 0002 静态条款)。
+     600ms 与降级 300ms 是一次性 keyframes 值,定稿不入 token——ADR 0003 ---- */
 
   @keyframes fade-up {
     from {
@@ -328,7 +330,7 @@ const principles = [
   .wordmark,
   h1,
   .sub {
-    animation: fade-up 600ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+    animation: fade-up 600ms var(--ease-out) backwards;
   }
 
   h1 {
@@ -337,6 +339,28 @@ const principles = [
 
   .sub {
     animation-delay: 160ms;
+  }
+
+  /* 分级 reduced-motion 的唯一 keyframes 例外(ADR 0003):
+     入场降级为纯 opacity 300ms,无 translateY。
+     !important + 作用域特异性压过全局 animation: none 灭杀;
+     shorthand 顺带清零 stagger 延迟——降级态三行同拍一次柔现,是有意为之 */
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .wordmark,
+    h1,
+    .sub {
+      animation: fade-in 300ms ease backwards !important;
+    }
   }
 
   /* ---- 移动端 ---- */

@@ -84,10 +84,11 @@
     border: 1px solid var(--border);
     border-radius: 50%;
     cursor: pointer;
+    /* border 150 / background 200 的不同拍是已知撕裂,统一归「主题同拍」票处理——ADR 0003 */
     transition:
-      border-color 150ms ease,
-      background-color 200ms ease,
-      transform 150ms ease;
+      border-color var(--dur-fast) ease,
+      background-color var(--dur-ui) ease,
+      transform var(--dur-fast) ease;
   }
 
   .theme-toggle:hover,
@@ -105,8 +106,8 @@
     width: 1.125rem;
     height: 1.125rem;
     transition:
-      opacity 200ms ease,
-      transform 200ms ease;
+      opacity var(--dur-ui) ease,
+      transform var(--dur-ui) ease;
   }
 
   /* 图标可见性吃 --glow-strength(暗色=1 → 太阳,亮色=0 → 月亮),
