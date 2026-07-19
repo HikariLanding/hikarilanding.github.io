@@ -15,8 +15,7 @@
   --font-serif: Georgia, 'Iowan Old Style', 'Times New Roman', serif;
 
   /* Motion token（docs/adr/0003 定稿表）——全站唯一动效值来源,新动效禁止表外字面量。
-     唯一例外:入场动效的一次性值(600ms / 降级 300ms / stagger 延迟)不入 token。
-     --dur-press 由「按压节拍」条款消费(票⑧),先随表定义 */
+     唯一例外:入场动效的一次性值(600ms / 降级 300ms / stagger 延迟)不入 token */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --dur-press: 100ms;
   --dur-fast: 150ms;
@@ -32,6 +31,10 @@
   --accent: #a16207;
   --glow: transparent;
   --glow-strength: 0;
+  /* 昼影(票⑧/ADR 0003「深度对称」):与 --glow 互为镜像的零分支手法——昼有影,夜有光。
+     暗色置 transparent 令 box-shadow: var(--shadow) 整值失效回落 none(IACVT):
+     #1A1510 深底上影不可见,暗色抬升层次由 border/surface 对比承担(ADR 0002 实测) */
+  --shadow: 0 8px 24px rgb(37 31 21 / 0.08);
 }
 
 /* 暗色 token 块出现两次（下方手动覆盖 + 媒体查询内跟随系统）,
@@ -47,6 +50,7 @@
   --accent: #f5b84c;
   --glow: rgba(245, 184, 76, 0.16);
   --glow-strength: 1;
+  --shadow: transparent;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -60,6 +64,7 @@
     --accent: #f5b84c;
     --glow: rgba(245, 184, 76, 0.16);
     --glow-strength: 1;
+    --shadow: transparent;
   }
 }
 

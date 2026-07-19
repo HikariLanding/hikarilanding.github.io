@@ -28,6 +28,8 @@
 
 入场 fade-up（600ms，reduced-motion 降级 300ms）为一次性 keyframes 值，不入 token。新动效禁止引入表外魔法数。
 
+➡️ 修订（2026-07-19，票⑧）：卡片 hover 抬升自「按压节拍」落地起并入 `--dur-ui`——CSS 过渡取目标态声明，回弹（`--dur-ui`）与抬升共用基态 transform 槽位，抬升必然随之；150/200 之差不可辨，撕裂可辨。`--dur-fast` 的「hover 类即时反馈」自此指颜色/阴影浮现类，不含卡片位移。
+
 ### 分级 reduced-motion（修订 0002 票 #5「全站禁用」条款）
 
 `prefers-reduced-motion: reduce` 下：位移/形变类（transform 过渡、含位移的 keyframes）全禁；**color / background-color / border-color / opacity 及注册色 token `--glow` 的过渡保留**——颜色渐变帮助理解状态迁移，禁掉反而制造硬切。入场 fade-up 降级为纯 opacity 300ms。实现细节定稿：保留以全局 `transition-property` 白名单实现，白名单按序循环取各元素自身 duration 列表——**transition 简写内属性顺序决定 RM 槽位**，颜色类属性须排在 transform 之前，同框 border/background 才不会在 RM 下落进不同槽位撕裂。
@@ -44,7 +46,7 @@
 
 ### 按压节拍
 
-`:active` 必须写**完整 transform 合成**（如 `translateY(-2px) scale(0.99)`），禁止部分覆写；press `--dur-press`、release `--dur-ui`（快下慢回）。hover 专属效果（位移、变色）一律进 `(hover: hover)`，触屏不留 sticky 态。
+`:active` 必须写**完整 transform 合成**（如 `translateY(-2px) scale(0.99)`），禁止部分覆写；press `--dur-press`、release `--dur-ui`（快下慢回）。hover 专属效果（位移、变色）一律进 `(hover: hover)`，触屏不留 sticky 态。补充（2026-07-19，票⑧）：reduced-motion 下交互位移/形变**整体不作用**（`transform: none`，同 hero 入场去位移的先例）——分级 RM 的白名单只禁过渡不禁状态位移，离散跳位对 RM 用户是无收益的闪变；hover 反馈由 border 变色与昼影浮现（皆在白名单内）承担。
 
 ## 否决清单（裁决定稿，复议唯一入口：/prototype + ADR）
 

@@ -28,6 +28,60 @@ function distCss(): string {
   return [distText(/\.css$/), ...styleBlocks].join('\n');
 }
 
+/** 剥掉 Astro 作用域属性([data-astro-cid-*]),便于按纯选择器断言 */
+const unscope = (css: string) => css.replace(/\[data-astro-cid-[^\]]*\]/g, '');
+
+/** open 处 '{' 的配对 '}' 下标;-1 = 不配平 */
+function matchingBrace(css: string, open: number): number {
+  let depth = 0;
+  for (let i = open; i < css.length; i++) {
+    if (css[i] === '{') depth++;
+    else if (css[i] === '}' && --depth === 0) return i;
+  }
+  return -1;
+}
+
+/** 从 startRe 命中处起做花括号配平,返回该块的内文（@media / @keyframes 用） */
+function braceBlock(css: string, startRe: RegExp): string {
+  const m = startRe.exec(css);
+  if (!m) return '';
+  const open = css.indexOf('{', m.index);
+  const end = matchingBrace(css, open);
+  return end === -1 ? '' : css.slice(open + 1, end);
+}
+
+/** 所有 startRe 命中块的内文拼接（同名 @media 出现多次时用,如 RM 守卫） */
+function blocksOf(css: string, startRe: RegExp): string {
+  const out: string[] = [];
+  for (let m; (m = startRe.exec(css)); ) {
+    const open = css.indexOf('{', m.index);
+    const end = matchingBrace(css, open);
+    if (end === -1) break;
+    out.push(css.slice(open + 1, end));
+    css = css.slice(end + 1);
+  }
+  return out.join('\n');
+}
+
+/** 删除所有 startRe 命中的花括号块,留下块外文本 */
+function stripBlocks(css: string, startRe: RegExp): string {
+  for (let m; (m = startRe.exec(css)); ) {
+    const open = css.indexOf('{', m.index);
+    const end = matchingBrace(css, open);
+    if (end === -1) return css;
+    css = css.slice(0, m.index) + css.slice(end + 1);
+  }
+  return css;
+}
+
+/** 第一条匹配 selRe 选择器的规则体（规则体内无嵌套花括号） */
+function ruleOf(css: string, selRe: RegExp): string {
+  const m = selRe.exec(css);
+  if (!m) return '';
+  const open = css.indexOf('{', m.index);
+  return css.slice(open + 1, css.indexOf('}', open));
+}
+
 /** 以指定 fixture 构建一次,返回全部文本产物（dist 会被下次构建覆盖,只留字符串） */
 function build(fixture: string): { all: string; css: string } {
   execSync('npx astro build', {
@@ -49,6 +103,7 @@ const TOKENS = [
   '--accent',
   '--glow',
   '--glow-strength',
+  '--shadow',
 ];
 
 // docs/adr/0003 定稿的 motion token 表——全站唯一动效值来源
@@ -155,8 +210,7 @@ describe('motion system', () => {
     for (const token of MOTION_TOKENS) {
       expect(withProjectsCss, `missing token ${token}`).toContain(`${token}:`);
     }
-    // --dur-press 定稿入表但由票⑧「按压节拍」消费,本票只断言定义
-    for (const token of ['--ease-out', '--dur-fast', '--dur-ui', '--dur-glow']) {
+    for (const token of MOTION_TOKENS) {
       expect(withProjectsCss, `token ${token} never consumed`).toContain(`var(${token})`);
     }
   });
@@ -264,6 +318,79 @@ describe('theme unison', () => {
       const slot = (prop: string) => durs[ALLOWLIST.indexOf(prop) % durs.length];
       expect(slot('background-color'), `RM slot tear in "${decl[1]}"`).toBe(slot('border-color'));
     }
+  });
+});
+
+describe('card press physics and day shadow', () => {
+  // 票⑧/ADR 0003「按压节拍」「深度对称」。选择器断言先 unscope 再匹配;
+  // hover 专属效果一律躲进 (hover:hover) 守卫,守卫内外分开断言
+  const HOVER_GUARD = /@media\s*\(\s*hover:\s*hover\s*\)/;
+
+  it('defines --shadow as the daylight mirror of --glow: real in light, transparent in dark', () => {
+    // 昼有影,夜的层次由 border/surface 承担(ADR 0002 实测)——零主题分支
+    expect(withProjectsCss).toMatch(/--shadow:\s*0 8px 24px/);
+    expect(withProjectsCss.match(/--shadow:\s*transparent/g) ?? []).toHaveLength(2);
+    expect(withProjectsCss.match(/--shadow:/g) ?? []).toHaveLength(3);
+  });
+
+  it('pre-paints the hover shadow on a pseudo-element and reveals it via opacity only', () => {
+    const after = ruleOf(unscope(withProjectsCss), /\.card::?after\s*\{/); // 压缩器会把 ::after 缩成 :after
+    expect(after, 'missing .card::after shadow face').toBeTruthy();
+    expect(after).toMatch(/box-shadow:\s*var\(--shadow\)/);
+    expect(after).toMatch(/opacity:\s*0[;}]?/);
+    expect(after).toMatch(/transition:\s*opacity var\(--dur-fast\) ease/);
+    // 阴影浮现不直接过渡 box-shadow(每帧重绘)——ADR 0003
+    expect(withProjectsCss).not.toMatch(/transition[^;{}]*box-shadow/);
+  });
+
+  it('keeps hover lift, hover colour, and shadow reveal behind the hover guard', () => {
+    const guarded = braceBlock(unscope(withProjectsCss), HOVER_GUARD);
+    const hover = ruleOf(guarded, /\.card:hover\s*\{/);
+    expect(hover).toMatch(/border-color:\s*var\(--accent\)/);
+    expect(hover).toMatch(/transform:\s*translateY\(-2px\)/);
+    expect(ruleOf(guarded, /\.card:hover::?after\s*\{/)).toMatch(/opacity:\s*1/);
+    // 触屏 tap 无残留 sticky 边框:守卫之外不得再有 .card 的 hover 规则
+    // (RM 守卫内的 transform:none 取消条款不产生样式,先剥掉再断言)
+    const outside = stripBlocks(
+      stripBlocks(unscope(withProjectsCss), HOVER_GUARD),
+      /@media\s*\(prefers-reduced-motion:\s*reduce\)/,
+    );
+    expect(outside).not.toMatch(/\.card[^,{]*:hover/);
+  });
+
+  it('composes the full transform on desktop press — never drops the hover lift', () => {
+    // 部分覆写会让按下瞬间先坠 2px 再收缩(transform 通道相撞)——ADR 0003 背景③
+    const guarded = braceBlock(unscope(withProjectsCss), HOVER_GUARD);
+    expect(ruleOf(guarded, /\.card:active\s*\{/)).toMatch(
+      /transform:\s*translateY\(-2px\)\s+scale\(0?\.99\)/,
+    );
+  });
+
+  it('keeps the touch press a pure scale with no drop', () => {
+    const outside = stripBlocks(unscope(withProjectsCss), HOVER_GUARD);
+    const active = ruleOf(outside, /\.card:active\s*\{/);
+    expect(active).toMatch(/transform:\s*scale\(0?\.99\)/);
+    expect(active).not.toMatch(/translateY/);
+  });
+
+  it('presses on --dur-press and releases on --dur-ui without remapping RM colour slots', () => {
+    const outside = stripBlocks(unscope(withProjectsCss), HOVER_GUARD);
+    const active = ruleOf(outside, /\.card:active\s*\{/);
+    // 快下:只覆写 transition-duration 且逐槽对齐基态列表(颜色×3 + transform)。
+    // 整表简写会重排 RM 白名单的槽位循环,颜色类被拖离 --dur-ui(票⑧交接注记①)
+    expect(active).toMatch(
+      /transition-duration:\s*var\(--dur-ui\),\s*var\(--dur-ui\),\s*var\(--dur-ui\),\s*var\(--dur-press\)/,
+    );
+    expect(active).not.toMatch(/transition[-:](?!duration)/);
+    // 慢回:回弹走基态 transform 槽位,归 --dur-ui(ADR 0003 token 表「按压回弹」)
+    expect(ruleOf(outside, /\.card\s*\{/)).toMatch(/transform var\(--dur-ui\) var\(--ease-out\)/);
+  });
+
+  it('cancels lift and press deformation entirely under reduced motion', () => {
+    // 验收「RM 下无位移/抬升」:⑥ 的白名单只禁 transform 过渡,不禁状态位移——
+    // 离散跳位是无收益的闪变,RM 内整体置 none;hover 反馈由 border/昼影承担
+    const rm = blocksOf(unscope(withProjectsCss), /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
+    expect(rm).toMatch(/\.card:hover,\s*\.card:active\s*\{[^{}]*transform:\s*none/);
   });
 });
 

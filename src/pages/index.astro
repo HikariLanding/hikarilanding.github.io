@@ -268,6 +268,7 @@ const principles = [
   }
 
   .card {
+    position: relative;
     display: grid;
     gap: 0.375rem;
     padding: 1.25rem 1.5rem;
@@ -275,31 +276,61 @@ const principles = [
     border: 1px solid var(--border);
     border-radius: 0.75rem;
     text-decoration: none;
-    /* 原 160ms 收编进 --dur-fast:150/160 之差不可辨,表外值不留——ADR 0003。
-       颜色类归主题同拍 --dur-ui,且排在 transform 之前(与开关同一纪律):
+    /* 颜色类归主题同拍 --dur-ui,且排在 transform 之前(与开关同一纪律):
        RM 白名单按 transition-property 顺序循环取 duration,颜色类须落进 --dur-ui 槽位,
-       同框 border/background 在 RM 下才不撕裂——票⑦ */
+       同框 border/background 在 RM 下才不撕裂——票⑦。
+       transform 槽位是按压回弹拍(--dur-ui,ADR 0003「快下慢回」):回弹与 hover 抬升
+       共用本基态声明,抬升遂从 --dur-fast 并入同拍——150/200 之差不可辨——票⑧ */
     transition:
       color var(--dur-ui) ease,
       border-color var(--dur-ui) ease,
       background-color var(--dur-ui) ease,
-      transform var(--dur-fast) var(--ease-out);
+      transform var(--dur-ui) var(--ease-out);
   }
 
-  .card:hover,
+  /* 昼影(票⑧/ADR 0003「深度对称」):伪元素预画 box-shadow,浮现只过渡 opacity——
+     不直接过渡 box-shadow(每帧重绘)。--shadow 暗色为 transparent,整值失效回落
+     none:昼有影,夜的抬升层次由 border/surface 承担 */
+  .card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: var(--shadow);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--dur-fast) ease;
+  }
+
   .card:focus-visible {
     border-color: var(--accent);
   }
 
-  /* 悬停位移只给真指针设备;按压反馈触屏同样受益 */
-  @media (hover: hover) and (pointer: fine) {
-    .card:hover {
-      transform: translateY(-2px);
-    }
-  }
-
+  /* 按压节拍(ADR 0003):快下慢回——按下 --dur-press,回弹随基态走 --dur-ui。
+     只覆写 transition-duration 并逐槽对齐基态列表(颜色×3 + transform),
+     不动 transition-property:整表简写会重排 RM 白名单的槽位循环,
+     颜色类被拖离 --dur-ui 同拍(anti-tearing/slot-alignment 测试执法) */
   .card:active {
     transform: scale(0.99);
+    transition-duration: var(--dur-ui), var(--dur-ui), var(--dur-ui), var(--dur-press);
+  }
+
+  /* hover 专属效果(位移、变色、昼影)一律进 (hover:hover):触屏 tap 不残留 sticky 态。
+     :active 在此写完整 transform 合成——部分覆写会让按下瞬间先坠 2px 再收缩
+     (transform 通道相撞,ADR 0003 背景③);触屏维持上面的纯 scale */
+  @media (hover: hover) and (pointer: fine) {
+    .card:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+    }
+
+    .card:hover::after {
+      opacity: 1;
+    }
+
+    .card:active {
+      transform: translateY(-2px) scale(0.99);
+    }
   }
 
   .card-name {
@@ -398,6 +429,14 @@ const principles = [
     h1,
     .sub {
       animation: fade-in 300ms ease backwards !important;
+    }
+
+    /* 票⑧验收「RM 下无位移/抬升」:⑥ 的白名单只禁 transform 过渡,不禁状态位移,
+       离散跳位对 RM 用户是无收益的闪变——整体置 none(同 hero 入场去位移的先例)。
+       hover 反馈仍有 border 变色与昼影浮现(皆在白名单内)承担 */
+    .card:hover,
+    .card:active {
+      transform: none;
     }
   }
 
