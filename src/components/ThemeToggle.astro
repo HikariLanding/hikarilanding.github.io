@@ -84,9 +84,11 @@
     border: 1px solid var(--border);
     border-radius: 50%;
     cursor: pointer;
-    /* border 150 / background 200 的不同拍是已知撕裂,统一归「主题同拍」票处理——ADR 0003 */
+    /* 颜色三属性主题同拍 --dur-ui,撕裂在此终结(票⑦/ADR 0003);transform 属交互节拍。
+       颜色类列首:RM 白名单按序循环取 duration,须让颜色类落进 --dur-ui 槽位 */
     transition:
-      border-color var(--dur-fast) ease,
+      color var(--dur-ui) ease,
+      border-color var(--dur-ui) ease,
       background-color var(--dur-ui) ease,
       transform var(--dur-fast) ease;
   }

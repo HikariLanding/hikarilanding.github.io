@@ -1,4 +1,15 @@
 /* Lantern 语义 token —— 终值与手法见 docs/adr/0002 */
+
+/* --glow 注册为 <color>,让光晕颜色本身可插值(票⑦/ADR 0003):
+   不注册时 radial-gradient 里的 --glow 离散切换,暗→亮方向光晕会在
+   opacity 淡出走完之前一帧消失(硬切)。不支持 @property 的浏览器
+   退回离散切换,不劣于旧行为 */
+@property --glow {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+
 :root {
   /* 衬线大标题栈（原型验证通过；不引入 web font——票 #3 决定） */
   --font-serif: Georgia, 'Iowan Old Style', 'Times New Roman', serif;
@@ -70,15 +81,18 @@ body {
 
 /* 分级 reduced-motion（ADR 0003,修订 0002 的全站禁用）:
    位移/形变全禁——transform 不进保留清单,变更即时生效;
-   color / background-color / border-color / opacity 过渡保留——
-   主题切换对前庭敏感用户仍是柔和渐变,而非整页硬切。
+   color / background-color / border-color / opacity 及注册色 token --glow
+   的过渡保留——主题切换对前庭敏感用户仍是柔和渐变,而非整页硬切。
    keyframes 全灭;唯一例外(hero 入场纯 opacity 降级)在 index.astro
-   以更高特异性 + !important 覆写本条 */
+   以更高特异性 + !important 覆写本条。
+   槽位纪律:本白名单按序循环取各元素自身的 duration 列表——
+   transition 简写内属性顺序决定 RM 槽位,颜色类属性须排在 transform 之前
+   (各元素注释与 anti-tearing 测试执法) */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
-    transition-property: color, background-color, border-color, opacity !important;
+    transition-property: color, background-color, border-color, opacity, --glow !important;
     animation: none !important;
   }
 }

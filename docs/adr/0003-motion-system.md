@@ -30,11 +30,11 @@
 
 ### 分级 reduced-motion（修订 0002 票 #5「全站禁用」条款）
 
-`prefers-reduced-motion: reduce` 下：位移/形变类（transform 过渡、含位移的 keyframes）全禁；**color / background-color / border-color / opacity 过渡保留**——颜色渐变帮助理解状态迁移，禁掉反而制造硬切。入场 fade-up 降级为纯 opacity 300ms。
+`prefers-reduced-motion: reduce` 下：位移/形变类（transform 过渡、含位移的 keyframes）全禁；**color / background-color / border-color / opacity 及注册色 token `--glow` 的过渡保留**——颜色渐变帮助理解状态迁移，禁掉反而制造硬切。入场 fade-up 降级为纯 opacity 300ms。实现细节定稿：保留以全局 `transition-property` 白名单实现，白名单按序循环取各元素自身 duration 列表——**transition 简写内属性顺序决定 RM 槽位**，颜色类属性须排在 transform 之前，同框 border/background 才不会在 RM 下落进不同槽位撕裂。
 
 ### 主题切换同拍（修订票 #5 只写 body 的做法）
 
-凡随主题变化的 color / background-color / border-color，统一 `--dur-ui` ease 同拍；光晕 `--dur-glow` 为唯一定稿例外（光比纸慢半拍，Lantern 仅有的诗意）。**同一元素框上不得存在两个不同 duration 的颜色类过渡**（如开关 border 150 / background 200 的撕裂）；属性兼任交互反馈与主题过渡时统一取一值——150/200 之差不可辨，撕裂可辨。机制维持 CSS transition（天然可中断、retarget 不归零），延续票 #5「短、柔、可中断」。
+凡随主题变化的 color / background-color / border-color，统一 `--dur-ui` ease 同拍；**光晕家族**共用 `--dur-glow` 唯一例外拍（光比纸慢半拍，Lantern 仅有的诗意）——家族成员：光晕本体的 opacity 与颜色（`--glow` 注册为 `@property <color>` 使渐变色可插值，否则暗→亮方向光晕在淡出走完前一帧消失），及强调词微光的 text-shadow。例外的单位是「拍」，不是单个消费者。**同一元素框上不得存在两个不同 duration 的颜色类过渡**（如开关 border 150 / background 200 的撕裂）；属性兼任交互反馈与主题过渡时统一取一值——150/200 之差不可辨，撕裂可辨。机制维持 CSS transition（天然可中断、retarget 不归零），延续票 #5「短、柔、可中断」。
 
 **升级条件**：若「新元素漏加主题过渡」类缺陷累计再发两次，机制升级为 View Transition 250ms crossfade（一条代码路径快照整页、观感不变——Apple 派的结构批评在此留档）；届时须复验连点 skip-to-end 的可接受度并修订本条。
 

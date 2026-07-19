@@ -183,7 +183,7 @@ describe('motion system', () => {
     expect(guardStart).toBeGreaterThan(-1);
     const guard = withProjectsCss.slice(guardStart, guardStart + 400);
     expect(guard).toMatch(
-      /transition-property:\s*color\s*,\s*background-color\s*,\s*border-color\s*,\s*opacity\s*!important/,
+      /transition-property:\s*color\s*,\s*background-color\s*,\s*border-color\s*,\s*opacity\s*,\s*--glow\s*!important/,
     );
     expect(guard).toMatch(/animation:\s*none\s*!important/);
   });
@@ -195,6 +195,75 @@ describe('motion system', () => {
     expect(keyframes).not.toMatch(/transform|translate/);
     // 降级动画必须以 !important 压过全局灭杀,否则 RM 下 hero 变硬现
     expect(withProjectsCss).toMatch(/animation:\s*fade-in\s[^;}]*!important/);
+  });
+});
+
+describe('theme unison', () => {
+  // 票⑦/ADR 0003:随主题变化的颜色类属性统一 --dur-ui 一拍,光晕家族 --dur-glow 唯一例外
+  it('groups every self-coloured element into the unison transition rule', () => {
+    const unison = withProjectsCss.match(
+      /([^{}]+)\{[^{}]*transition:\s*color var\(--dur-ui\) ease,\s*background-color var\(--dur-ui\) ease,\s*border-color var\(--dur-ui\) ease[^{}]*\}/,
+    );
+    expect(unison, 'missing grouped unison rule').toBeTruthy();
+    // Astro 会在选择器里插入 [data-astro-cid-*] 作用域属性,剥掉后按逗号精确比对——
+    // 子串包含有盲区('.principle p' 包含 '.principle',删掉后者测试照样绿)
+    const selectors = unison![1]!
+      .replace(/\[data-astro-cid-[^\]]*\]/g, '')
+      .split(',')
+      .map((s) => s.trim().replace(/\s+/g, ' '));
+    // 自设颜色/背景/边框的元素必须入列;继承色元素随 body 过渡自然同拍,不必入列
+    for (const sel of [
+      '.wordmark',
+      '.sub',
+      '.num',
+      '.principle',
+      '.principle p',
+      '.projects-heading',
+      '.empty',
+      '.card-name',
+      '.card-desc',
+      '.card-lang',
+      'footer',
+    ]) {
+      expect(selectors, `${sel} missing from unison list`).toContain(sel);
+    }
+  });
+
+  it('never puts a colour-class property off the ui beat (anti-tearing invariant)', () => {
+    // 同一元素框上不得有两个不同 duration 的颜色类过渡——颜色类一律 var(--dur-ui)
+    for (const decl of withProjectsCss.matchAll(/transition:([^;}]+)/g)) {
+      for (const part of decl[1]!.split(',')) {
+        const m = part.trim().match(/^(background-color|border-color|color)\s+(\S+)/);
+        if (m) expect(m[2], `${m[1]} off the ui beat in "${decl[1]}"`).toBe('var(--dur-ui)');
+      }
+    }
+  });
+
+  it('keeps the glow family as the only slow beat: orb opacity+colour and em text-shadow', () => {
+    // --glow 注册为 <color> 使渐变色可插值——否则暗→亮方向光晕在淡出走完前一帧消失
+    expect(withProjectsCss).toMatch(/@property --glow\s*\{[^}]*syntax:\s*["']<color>["']/);
+    expect(withProjectsCss).toMatch(
+      /transition:\s*opacity var\(--dur-glow\) ease,\s*--glow var\(--dur-glow\) ease/,
+    );
+    expect(withProjectsCss).toMatch(/text-shadow var\(--dur-glow\) ease/);
+    const glowConsumers = withProjectsCss.match(/[a-z-]+ var\(--dur-glow\)/g) ?? [];
+    expect(new Set(glowConsumers)).toEqual(
+      new Set(['opacity var(--dur-glow)', 'text-shadow var(--dur-glow)', '--glow var(--dur-glow)']),
+    );
+  });
+
+  it('keeps border and background on the same beat under the reduced-motion allowlist', () => {
+    // RM 白名单(全局 transition-property 覆写)按序循环取元素自身的 duration 列表——
+    // 同框可见的两块颜色面(border + background)在 RM 槽位映射后也必须同拍
+    const ALLOWLIST = ['color', 'background-color', 'border-color', 'opacity', '--glow'];
+    for (const decl of withProjectsCss.matchAll(/transition:([^;}]+)/g)) {
+      const parts = decl[1]!.split(',').map((p) => p.trim().split(/\s+/));
+      const props = parts.map((p) => p[0]!);
+      if (!props.includes('border-color') || !props.includes('background-color')) continue;
+      const durs = parts.map((p) => p[1]!);
+      const slot = (prop: string) => durs[ALLOWLIST.indexOf(prop) % durs.length];
+      expect(slot('background-color'), `RM slot tear in "${decl[1]}"`).toBe(slot('border-color'));
+    }
   });
 });
 

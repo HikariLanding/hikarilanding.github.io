@@ -103,6 +103,31 @@ const principles = [
 </html>
 
 <style>
+  /* ---- 主题同拍（票⑦/ADR 0003） ----
+     随主题变化的颜色类属性(color/background-color/border-color)统一 --dur-ui 一拍;
+     光晕与强调词微光(--dur-glow)是唯一例外拍。
+     同一元素框禁止双拍:兼任 hover 反馈的颜色属性(卡片、页脚链接、开关)同样归 --dur-ui——
+     150/200 之差不可辨,撕裂可辨。
+     入列规则:显式自设颜色/背景/边框的元素必须在此列(或在自带 transition 清单里并入同拍);
+     继承色元素(h1、h2 等)随 body 的过渡自然同拍,不必入列 ---- */
+
+  .wordmark,
+  .sub,
+  .num,
+  .principle,
+  .principle p,
+  .projects-heading,
+  .empty,
+  .card-name,
+  .card-desc,
+  .card-lang,
+  footer {
+    transition:
+      color var(--dur-ui) ease,
+      background-color var(--dur-ui) ease,
+      border-color var(--dur-ui) ease;
+  }
+
   /* ---- Hero（原型变体 B — Lantern） ---- */
 
   .hero {
@@ -127,8 +152,11 @@ const principles = [
     filter: blur(64px);
     opacity: var(--glow-strength);
     pointer-events: none;
-    /* 光晕本体静态(ADR 0002);此过渡只服务主题切换——光比纸慢半拍,唯一例外拍(ADR 0003) */
-    transition: opacity var(--dur-glow) ease;
+    /* 光晕本体静态(ADR 0002);此过渡只服务主题切换——光比纸慢半拍,--dur-glow 例外拍(ADR 0003)。
+       --glow 已注册为 <color>(global.css):颜色与 opacity 双通道同拍插值,亮↔暗双向无硬切 */
+    transition:
+      opacity var(--dur-glow) ease,
+      --glow var(--dur-glow) ease;
   }
 
   .wordmark {
@@ -155,6 +183,10 @@ const principles = [
     color: var(--accent);
     /* 强调词微光只在主题给出 glow 时出现（暗色）——ADR 0002 */
     text-shadow: 0 0 calc(var(--glow-strength) * 24px) var(--glow);
+    /* 微光与光晕同拍(--dur-glow 例外拍);color 归主题一拍——票⑦ */
+    transition:
+      color var(--dur-ui) ease,
+      text-shadow var(--dur-glow) ease;
   }
 
   .sub {
@@ -243,9 +275,14 @@ const principles = [
     border: 1px solid var(--border);
     border-radius: 0.75rem;
     text-decoration: none;
-    /* 原 160ms 收编进 --dur-fast:150/160 之差不可辨,表外值不留——ADR 0003 */
+    /* 原 160ms 收编进 --dur-fast:150/160 之差不可辨,表外值不留——ADR 0003。
+       颜色类归主题同拍 --dur-ui,且排在 transform 之前(与开关同一纪律):
+       RM 白名单按 transition-property 顺序循环取 duration,颜色类须落进 --dur-ui 槽位,
+       同框 border/background 在 RM 下才不撕裂——票⑦ */
     transition:
-      border-color var(--dur-fast) ease,
+      color var(--dur-ui) ease,
+      border-color var(--dur-ui) ease,
+      background-color var(--dur-ui) ease,
       transform var(--dur-fast) var(--ease-out);
   }
 
@@ -301,9 +338,10 @@ const principles = [
     color: var(--text-secondary);
     text-decoration: none;
     border-bottom: 1px solid var(--border);
+    /* 颜色类归主题同拍 --dur-ui,hover 反馈同值——票⑦ */
     transition:
-      color var(--dur-fast) ease,
-      border-color var(--dur-fast) ease;
+      color var(--dur-ui) ease,
+      border-color var(--dur-ui) ease;
   }
 
   footer a:hover,
