@@ -41,16 +41,8 @@ function matchingBrace(css: string, open: number): number {
   return -1;
 }
 
-/** 从 startRe 命中处起做花括号配平,返回该块的内文（@media / @keyframes 用） */
-function braceBlock(css: string, startRe: RegExp): string {
-  const m = startRe.exec(css);
-  if (!m) return '';
-  const open = css.indexOf('{', m.index);
-  const end = matchingBrace(css, open);
-  return end === -1 ? '' : css.slice(open + 1, end);
-}
-
-/** 所有 startRe 命中块的内文拼接（同名 @media 出现多次时用,如 RM 守卫） */
+/** 所有 startRe 命中块的内文拼接（同名 @media 出现多次时用,如 hover/RM 守卫——
+    票⑨起 hover 守卫在页面样式与 ThemeToggle 组件样式里各有一块,不可只取第一块） */
 function blocksOf(css: string, startRe: RegExp): string {
   const out: string[] = [];
   for (let m; (m = startRe.exec(css)); ) {
@@ -108,6 +100,14 @@ const TOKENS = [
 
 // docs/adr/0003 定稿的 motion token 表——全站唯一动效值来源
 const MOTION_TOKENS = ['--ease-out', '--dur-press', '--dur-fast', '--dur-ui', '--dur-glow'];
+
+// hover 专属效果(位移、变色、昼影)一律躲进此守卫——票⑧起卡片,票⑨扩展到开关与页脚链接
+const HOVER_GUARD = /@media\s*\(\s*hover:\s*hover\s*\)/;
+const RM_GUARD = /@media\s*\(prefers-reduced-motion:\s*reduce\)/;
+
+/** hover/RM 两类守卫块之外的样式文本——「守卫外不得残留 :hover」断言用
+    (RM 守卫内的 transform:none 取消条款不产生 hover 样式,一并剥掉) */
+const outsideGuards = (css: string) => stripBlocks(stripBlocks(css, HOVER_GUARD), RM_GUARD);
 
 let withProjects: string;
 let withProjectsCss: string;
@@ -324,7 +324,6 @@ describe('theme unison', () => {
 describe('card press physics and day shadow', () => {
   // 票⑧/ADR 0003「按压节拍」「深度对称」。选择器断言先 unscope 再匹配;
   // hover 专属效果一律躲进 (hover:hover) 守卫,守卫内外分开断言
-  const HOVER_GUARD = /@media\s*\(\s*hover:\s*hover\s*\)/;
 
   it('defines --shadow as the daylight mirror of --glow: real in light, transparent in dark', () => {
     // 昼有影,夜的层次由 border/surface 承担(ADR 0002 实测)——零主题分支
@@ -344,23 +343,18 @@ describe('card press physics and day shadow', () => {
   });
 
   it('keeps hover lift, hover colour, and shadow reveal behind the hover guard', () => {
-    const guarded = braceBlock(unscope(withProjectsCss), HOVER_GUARD);
+    const guarded = blocksOf(unscope(withProjectsCss), HOVER_GUARD);
     const hover = ruleOf(guarded, /\.card:hover\s*\{/);
     expect(hover).toMatch(/border-color:\s*var\(--accent\)/);
     expect(hover).toMatch(/transform:\s*translateY\(-2px\)/);
     expect(ruleOf(guarded, /\.card:hover::?after\s*\{/)).toMatch(/opacity:\s*1/);
     // 触屏 tap 无残留 sticky 边框:守卫之外不得再有 .card 的 hover 规则
-    // (RM 守卫内的 transform:none 取消条款不产生样式,先剥掉再断言)
-    const outside = stripBlocks(
-      stripBlocks(unscope(withProjectsCss), HOVER_GUARD),
-      /@media\s*\(prefers-reduced-motion:\s*reduce\)/,
-    );
-    expect(outside).not.toMatch(/\.card[^,{]*:hover/);
+    expect(outsideGuards(unscope(withProjectsCss))).not.toMatch(/\.card[^,{]*:hover/);
   });
 
   it('composes the full transform on desktop press — never drops the hover lift', () => {
     // 部分覆写会让按下瞬间先坠 2px 再收缩(transform 通道相撞)——ADR 0003 背景③
-    const guarded = braceBlock(unscope(withProjectsCss), HOVER_GUARD);
+    const guarded = blocksOf(unscope(withProjectsCss), HOVER_GUARD);
     expect(ruleOf(guarded, /\.card:active\s*\{/)).toMatch(
       /transform:\s*translateY\(-2px\)\s+scale\(0?\.99\)/,
     );
@@ -389,8 +383,58 @@ describe('card press physics and day shadow', () => {
   it('cancels lift and press deformation entirely under reduced motion', () => {
     // 验收「RM 下无位移/抬升」:⑥ 的白名单只禁 transform 过渡,不禁状态位移——
     // 离散跳位是无收益的闪变,RM 内整体置 none;hover 反馈由 border/昼影承担
-    const rm = blocksOf(unscope(withProjectsCss), /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
+    const rm = blocksOf(unscope(withProjectsCss), RM_GUARD);
     expect(rm).toMatch(/\.card:hover,\s*\.card:active\s*\{[^{}]*transform:\s*none/);
+  });
+});
+
+describe('typography and still details', () => {
+  // 票⑨:光学修正 + 断行 + 选中态 + 全站统一焦点环。
+  // 字距/行高是「区间内肉眼定稿」的终值——改动须重走截图对比,不是普通魔数
+
+  it('locks the optical corrections: h1 at -0.02em/1.1, principle h2 at -0.012em', () => {
+    const h1 = ruleOf(unscope(withProjectsCss), /h1\s*\{/);
+    expect(h1).toMatch(/letter-spacing:\s*-0?\.02em/);
+    expect(h1).toMatch(/line-height:\s*1\.1\b/);
+    expect(ruleOf(unscope(withProjectsCss), /\.principle h2\s*\{/)).toMatch(
+      /letter-spacing:\s*-0?\.012em/,
+    );
+  });
+
+  it('balances the h1 and pretty-wraps the prose paragraphs', () => {
+    expect(ruleOf(unscope(withProjectsCss), /h1\s*\{/)).toMatch(/text-wrap:\s*balance/);
+    for (const sel of [/\.sub\s*\{/, /\.principle p\s*\{/, /\.card-desc\s*\{/]) {
+      expect(
+        ruleOf(unscope(withProjectsCss), sel),
+        `${sel} missing text-wrap: pretty`,
+      ).toMatch(/text-wrap:\s*pretty/);
+    }
+  });
+
+  it('tints selection amber through one theme-blind color-mix rule', () => {
+    // 零主题分支——与 --glow 同款手法:亮暗两主题共用一条规则,琥珀调随 --accent 走
+    expect(withProjectsCss).toMatch(
+      /::selection\s*\{[^}]*background:\s*color-mix\(in srgb,\s*var\(--accent\)\s*22%,\s*transparent\)/,
+    );
+    expect(withProjectsCss.match(/::selection/g)).toHaveLength(1);
+  });
+
+  it('unifies keyboard focus into a single site-wide ring', () => {
+    expect(withProjectsCss).toMatch(
+      /:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--accent\)/,
+    );
+    expect(withProjectsCss).toMatch(/:focus-visible\s*\{[^}]*outline-offset:\s*3px/);
+    // 唯一出现:卡片聚焦不再走 border 变色,开关/页脚链接不再各自为政
+    expect(withProjectsCss.match(/:focus-visible/g)).toHaveLength(1);
+  });
+
+  it('keeps every hover colour shift behind the hover guard: card, toggle, footer link', () => {
+    // 票⑧交接注记:开关与页脚链接的 :hover 变色随本票一并入守卫——触屏 tap 无 sticky
+    const unscoped = unscope(withProjectsCss);
+    const guarded = blocksOf(unscoped, HOVER_GUARD);
+    expect(ruleOf(guarded, /\.theme-toggle:hover\s*\{/)).toMatch(/border-color:\s*var\(--accent\)/);
+    expect(ruleOf(guarded, /footer a:hover\s*\{/)).toMatch(/color:\s*var\(--accent\)/);
+    expect(outsideGuards(unscoped)).not.toMatch(/:hover/);
   });
 });
 

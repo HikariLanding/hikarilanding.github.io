@@ -171,8 +171,13 @@ const principles = [
     font-family: var(--font-serif);
     font-size: clamp(2.8rem, 7vw, 5.2rem);
     font-weight: 500;
-    letter-spacing: -0.015em;
-    line-height: 1.15;
+    /* 光学定稿(票⑨,区间内截图对比):字距 -0.02~-0.022em 两端在 83px 下不可辨
+       (差 0.17px/字),取保守端防 44.8px 斜体 land 粘连;行高取紧端 1.1——
+       两行标题更成块,1.12 的余量在两三行内无收益。改值须重走截图对比 */
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    /* balance 修中等宽度(~500px)的 4+2 失衡断行:land 收在首行尾,两行 3+3 */
+    text-wrap: balance;
     max-width: 18ch;
     margin: 0;
     position: relative;
@@ -194,6 +199,7 @@ const principles = [
     color: var(--text-secondary);
     font-size: 1.05rem;
     max-width: 46ch;
+    text-wrap: pretty;
   }
 
   /* ---- 三原则 ---- */
@@ -225,7 +231,7 @@ const principles = [
     font-family: var(--font-serif);
     font-size: 1.7rem;
     font-weight: 500;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.012em; /* 票⑨定稿:1.7rem 档的光学收紧——字越大越收紧(h1 -0.02em) */
     margin: 0 0 0.6rem;
   }
 
@@ -234,6 +240,7 @@ const principles = [
     font-size: 0.98rem;
     max-width: 52ch;
     margin: 0;
+    text-wrap: pretty;
   }
 
   /* ---- 项目区（票 #4 定稿的卡片） ---- */
@@ -302,9 +309,7 @@ const principles = [
     transition: opacity var(--dur-fast) ease;
   }
 
-  .card:focus-visible {
-    border-color: var(--accent);
-  }
+  /* 卡片聚焦走全站统一焦点环(global.css,票⑨)——border 变色还给 hover */
 
   /* 按压节拍(ADR 0003):快下慢回——按下 --dur-press,回弹随基态走 --dur-ui。
      只覆写 transition-duration 并逐槽对齐基态列表(颜色×3 + transform),
@@ -340,6 +345,7 @@ const principles = [
 
   .card-desc {
     color: var(--text-secondary);
+    text-wrap: pretty;
   }
 
   .card-lang {
@@ -375,10 +381,13 @@ const principles = [
       border-color var(--dur-ui) ease;
   }
 
-  footer a:hover,
-  footer a:focus-visible {
-    color: var(--accent);
-    border-color: var(--accent);
+  /* hover 变色入守卫(票⑨,随「变色还给 hover」一并收进):触屏 tap 无 sticky;
+     键盘聚焦走全站焦点环(global.css) */
+  @media (hover: hover) and (pointer: fine) {
+    footer a:hover {
+      color: var(--accent);
+      border-color: var(--accent);
+    }
   }
 
   /* ---- 入场动效（票 #6 定稿）:仅 Hero 首屏,轻 fade-up,一次性;

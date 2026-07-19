@@ -46,7 +46,7 @@
 
 ### 按压节拍
 
-`:active` 必须写**完整 transform 合成**（如 `translateY(-2px) scale(0.99)`），禁止部分覆写；press `--dur-press`、release `--dur-ui`（快下慢回）。hover 专属效果（位移、变色）一律进 `(hover: hover)`，触屏不留 sticky 态。补充（2026-07-19，票⑧）：reduced-motion 下交互位移/形变**整体不作用**（`transform: none`，同 hero 入场去位移的先例）——分级 RM 的白名单只禁过渡不禁状态位移，离散跳位对 RM 用户是无收益的闪变；hover 反馈由 border 变色与昼影浮现（皆在白名单内）承担。
+`:active` 必须写**完整 transform 合成**（如 `translateY(-2px) scale(0.99)`），禁止部分覆写；press `--dur-press`、release `--dur-ui`（快下慢回）。hover 专属效果（位移、变色）一律进 `(hover: hover)`——实现统一写作 `(hover: hover) and (pointer: fine)`（加严：电视/主机类「可悬停但粗指针」设备也按触屏对待），触屏不留 sticky 态；此守卫自票⑨起覆盖全站（卡片、主题开关、页脚链接）。补充（2026-07-19，票⑧）：reduced-motion 下交互位移/形变**整体不作用**（`transform: none`，同 hero 入场去位移的先例）——分级 RM 的白名单只禁过渡不禁状态位移，离散跳位对 RM 用户是无收益的闪变；hover 反馈由 border 变色与昼影浮现（皆在白名单内）承担。
 
 ## 否决清单（裁决定稿，复议唯一入口：/prototype + ADR）
 

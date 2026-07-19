@@ -93,10 +93,12 @@
       transform var(--dur-fast) ease;
   }
 
-  .theme-toggle:hover,
-  .theme-toggle:focus-visible {
-    border-color: var(--accent);
-    color: var(--text);
+  /* hover 变色入守卫(票⑨):触屏 tap 无 sticky;键盘聚焦走全站焦点环(global.css) */
+  @media (hover: hover) and (pointer: fine) {
+    .theme-toggle:hover {
+      border-color: var(--accent);
+      color: var(--text);
+    }
   }
 
   .theme-toggle:active {

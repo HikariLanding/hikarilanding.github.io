@@ -72,6 +72,19 @@
   box-sizing: border-box;
 }
 
+/* 选中态(票⑨):零主题分支——琥珀调随 --accent 走,与 --glow 同款手法。
+   只着背景不改字色:22% 半透琥珀垫在任一主题的正文色下都保持可读 */
+::selection {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+/* 全站唯一焦点环(票⑨):变色还给 hover,键盘聚焦一律走环。
+   环即时出现不入动效——聚焦反馈要的是「立刻在哪」,不是柔和 */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
 body {
   margin: 0;
   background: var(--bg);
