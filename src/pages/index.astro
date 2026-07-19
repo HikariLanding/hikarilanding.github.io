@@ -148,15 +148,15 @@ const principles = [
     width: 34rem;
     height: 22rem;
     max-width: 100vw;
-    background: radial-gradient(closest-side, var(--glow), transparent);
+    /* 渐变色为常量(=暗色 --glow 终值),不吃 var(票⑩改判):主题切换只走 opacity 单通道——
+       静态模糊层缓存为合成器纹理,切换零逐帧 paint;颜色不再翻转,暗→亮「一帧消失」构造性根除。
+       亮色下 --glow-strength=0,层不可见 */
+    background: radial-gradient(closest-side, rgba(245 184 76 / 0.16), transparent);
     filter: blur(64px);
     opacity: var(--glow-strength);
     pointer-events: none;
-    /* 光晕本体静态(ADR 0002);此过渡只服务主题切换——光比纸慢半拍,--dur-glow 例外拍(ADR 0003)。
-       --glow 已注册为 <color>(global.css):颜色与 opacity 双通道同拍插值,亮↔暗双向无硬切 */
-    transition:
-      opacity var(--dur-glow) ease,
-      --glow var(--dur-glow) ease;
+    /* 光晕本体静态(ADR 0002);此过渡只服务主题切换——光比纸慢半拍,--dur-glow 例外拍(ADR 0003) */
+    transition: opacity var(--dur-glow) ease;
   }
 
   .wordmark {
@@ -186,9 +186,13 @@ const principles = [
   h1 em {
     font-style: italic;
     color: var(--accent);
-    /* 强调词微光只在主题给出 glow 时出现（暗色）——ADR 0002 */
-    text-shadow: 0 0 calc(var(--glow-strength) * 24px) var(--glow);
-    /* 微光与光晕同拍(--dur-glow 例外拍);color 归主题一拍——票⑦ */
+    /* 强调词微光只在主题给出 glow 时出现(暗色)——ADR 0002。
+       半径常量 24px,可见性全交 --glow alpha(亮色 transparent 即隐形)——票⑩:
+       半径吃 --glow-strength 时,RM 下 strength 离散翻转令微光一帧瞬灭 */
+    text-shadow: 0 0 24px var(--glow);
+    /* 微光与光晕同拍(--dur-glow 例外拍);color 归主题一拍——票⑦。
+       RM 下 text-shadow 不在白名单,渐隐靠 --glow 自身插值(注册见 global.css),
+       槽位循环取 0.2s ≠ 家族 0.3s 拍——已判不可辨,豁免(票⑩) */
     transition:
       color var(--dur-ui) ease,
       text-shadow var(--dur-glow) ease;

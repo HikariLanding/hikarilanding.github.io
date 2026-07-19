@@ -1,9 +1,9 @@
 /* Lantern 语义 token —— 终值与手法见 docs/adr/0002 */
 
-/* --glow 注册为 <color>,让光晕颜色本身可插值(票⑦/ADR 0003):
-   不注册时 radial-gradient 里的 --glow 离散切换,暗→亮方向光晕会在
-   opacity 淡出走完之前一帧消失(硬切)。不支持 @property 的浏览器
-   退回离散切换,不劣于旧行为 */
+/* --glow 注册为 <color>,让颜色本身可插值(票⑦引入;票⑩改判后唯一消费者=强调词微光):
+   RM 下 text-shadow 不在过渡白名单,微光渐隐全靠 --glow 自身(白名单内)插值——
+   不注册则 RM 暗→亮方向微光一帧瞬灭。orb 渐变色已改常量,不再消费 --glow(票⑩)。
+   不支持 @property 的浏览器退回离散切换,不劣于旧行为 */
 @property --glow {
   syntax: '<color>';
   inherits: true;

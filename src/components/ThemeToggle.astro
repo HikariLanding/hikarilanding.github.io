@@ -84,13 +84,14 @@
     border: 1px solid var(--border);
     border-radius: 50%;
     cursor: pointer;
-    /* 颜色三属性主题同拍 --dur-ui,撕裂在此终结(票⑦/ADR 0003);transform 属交互节拍。
-       颜色类列首:RM 白名单按序循环取 duration,须让颜色类落进 --dur-ui 槽位 */
+    /* 颜色三属性主题同拍 --dur-ui,撕裂在此终结(票⑦/ADR 0003)。
+       颜色类列首:RM 白名单按序循环取 duration,须让颜色类落进 --dur-ui 槽位。
+       transform 槽位是按压回弹拍(--dur-ui/--ease-out,ADR 0003「快下慢回」),照 .card 先例——票⑩ */
     transition:
       color var(--dur-ui) ease,
       border-color var(--dur-ui) ease,
       background-color var(--dur-ui) ease,
-      transform var(--dur-fast) ease;
+      transform var(--dur-ui) var(--ease-out);
   }
 
   /* hover 变色入守卫(票⑨):触屏 tap 无 sticky;键盘聚焦走全站焦点环(global.css) */
@@ -101,17 +102,25 @@
     }
   }
 
+  /* 按压节拍(ADR 0003,票⑩补作业):快下慢回——按下 --dur-press,回弹随基态走 --dur-ui。
+     只覆写 transition-duration 并逐槽对齐基态列表(颜色×3 + transform),照 .card 先例:
+     整表简写会重排 RM 白名单的槽位循环,颜色类被拖离 --dur-ui 同拍。
+     深度 0.96:票⑩仲裁区间 0.95–0.97 内截图对比定稿(3x 采样)——0.97 与静止态
+     几乎不可辨,0.95/0.96 差半像素,取中值;旧值 0.92 在 44px 圆钮上明显「按瘪」,
+     与卡片 0.99 的克制人格失调 */
   .theme-toggle:active {
-    transform: scale(0.92);
+    transform: scale(0.96);
+    transition-duration: var(--dur-ui), var(--dur-ui), var(--dur-ui), var(--dur-press);
   }
 
   .icon {
     grid-area: 1 / 1;
     width: 1.125rem;
     height: 1.125rem;
+    /* 旋转曲线归 --ease-out(票⑩):与全站位移/回弹同一条曲线,90° 旋转尾段柔收 */
     transition:
       opacity var(--dur-ui) ease,
-      transform var(--dur-ui) ease;
+      transform var(--dur-ui) var(--ease-out);
   }
 
   /* 图标可见性吃 --glow-strength(暗色=1 → 太阳,亮色=0 → 月亮),
@@ -124,5 +133,15 @@
   .icon-moon {
     opacity: calc(1 - var(--glow-strength));
     transform: rotate(calc(var(--glow-strength) * -90deg));
+  }
+
+  /* RM 下交互位移/形变整体不作用(ADR 0003 票⑧补充条款,票⑩把执法面从卡片扩展到开关):
+     ⑥ 的白名单只禁 transform 过渡不禁状态位移,按压缩放与日/月旋转在 RM 下都成离散跳位——
+     置 none 后可见图标不受影响(可见态旋转恒 0°),切换叙事由 opacity 渐变(白名单内)独任 */
+  @media (prefers-reduced-motion: reduce) {
+    .theme-toggle:active,
+    .icon {
+      transform: none;
+    }
   }
 </style>

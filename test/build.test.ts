@@ -167,11 +167,13 @@ describe('hero and principles', () => {
     }
   });
 
-  it('implements the glow as a dedicated blurred element bound to the glow tokens', () => {
-    // ADR 0002：光晕是 token 消费者,不是组件分叉——亮色下靠 token 值自然熄灭
+  it('implements the glow as a dedicated blurred element on a single opacity channel', () => {
+    // ADR 0002 手法 ×0003 票⑩改判:渐变色为常量(=暗色 --glow 终值),不吃 var——
+    // 静态模糊层缓存为合成器纹理;亮色下靠 --glow-strength(opacity)自然熄灭
     expect(withProjects).toMatch(/<div class="glow-orb"[^>]*aria-hidden="true"/);
     expect(withProjects).toMatch(/filter:\s*blur\(/);
-    expect(withProjects).toMatch(/radial-gradient\([^)]*var\(--glow\)/);
+    expect(withProjects).toMatch(/radial-gradient\(closest-side,\s*rgba\(245 184 76 \/ ?\.16\)/);
+    expect(withProjects).not.toMatch(/radial-gradient\([^)]*var\(/);
     expect(withProjects).toMatch(/opacity:\s*var\(--glow-strength\)/);
   });
 });
@@ -293,16 +295,21 @@ describe('theme unison', () => {
     }
   });
 
-  it('keeps the glow family as the only slow beat: orb opacity+colour and em text-shadow', () => {
-    // --glow 注册为 <color> 使渐变色可插值——否则暗→亮方向光晕在淡出走完前一帧消失
+  it('keeps the glow family as the only slow beat: orb opacity and em text-shadow', () => {
+    // --glow 注册保留(票⑩改判后唯一消费者=强调词微光):RM 下 text-shadow 不在白名单,
+    // 微光渐隐全靠 --glow 自身插值——不注册则 RM 暗→亮方向一帧瞬灭
     expect(withProjectsCss).toMatch(/@property --glow\s*\{[^}]*syntax:\s*["']<color>["']/);
-    expect(withProjectsCss).toMatch(
-      /transition:\s*opacity var\(--dur-glow\) ease,\s*--glow var\(--dur-glow\) ease/,
-    );
+    // orb 单通道(票⑩):transition 仅 opacity,不再 transition --glow——主题切换零逐帧 paint
+    const orb = ruleOf(unscope(withProjectsCss), /\.glow-orb\s*\{/);
+    expect(orb).toMatch(/transition:\s*opacity var\(--dur-glow\) ease;?$/);
+    // 微光半径常量 24px,可见性全交 --glow alpha(票⑩):
+    // 半径吃 --glow-strength 时,RM 下 strength 离散翻转令微光一帧瞬灭
+    expect(withProjectsCss).toMatch(/text-shadow:\s*0 0 24px var\(--glow\)/);
+    expect(withProjectsCss).not.toMatch(/text-shadow:[^;}]*--glow-strength/);
     expect(withProjectsCss).toMatch(/text-shadow var\(--dur-glow\) ease/);
     const glowConsumers = withProjectsCss.match(/[a-z-]+ var\(--dur-glow\)/g) ?? [];
     expect(new Set(glowConsumers)).toEqual(
-      new Set(['opacity var(--dur-glow)', 'text-shadow var(--dur-glow)', '--glow var(--dur-glow)']),
+      new Set(['opacity var(--dur-glow)', 'text-shadow var(--dur-glow)']),
     );
   });
 
@@ -385,6 +392,34 @@ describe('card press physics and day shadow', () => {
     // 离散跳位是无收益的闪变,RM 内整体置 none;hover 反馈由 border/昼影承担
     const rm = blocksOf(unscope(withProjectsCss), RM_GUARD);
     expect(rm).toMatch(/\.card:hover,\s*\.card:active\s*\{[^{}]*transform:\s*none/);
+  });
+});
+
+describe('toggle press rhythm', () => {
+  // 票⑩/ADR 0003「按压节拍」补作业:落地面从卡片扩展到开关,照 .card 先例逐条对齐
+
+  it('presses on --dur-press and releases on --dur-ui without remapping RM colour slots', () => {
+    const outside = stripBlocks(unscope(withProjectsCss), RM_GUARD);
+    const active = ruleOf(outside, /\.theme-toggle:active\s*\{/);
+    // 深度 0.96:0.95–0.97 区间内截图对比定稿(ThemeToggle 注释记录)——改值须重走对比
+    expect(active).toMatch(/transform:\s*scale\(0?\.96\)/);
+    // 快下:只覆写 transition-duration 且逐槽对齐基态列表(颜色×3 + transform)
+    expect(active).toMatch(
+      /transition-duration:\s*var\(--dur-ui\),\s*var\(--dur-ui\),\s*var\(--dur-ui\),\s*var\(--dur-press\)/,
+    );
+    expect(active).not.toMatch(/transition[-:](?!duration)/);
+    // 慢回:回弹走基态 transform 槽位,归 --dur-ui/--ease-out;图标旋转曲线一并归 --ease-out
+    expect(ruleOf(outside, /\.theme-toggle\s*\{/)).toMatch(
+      /transform var\(--dur-ui\) var\(--ease-out\)/,
+    );
+    expect(ruleOf(outside, /\.icon\s*\{/)).toMatch(/transform var\(--dur-ui\) var\(--ease-out\)/);
+  });
+
+  it('cancels press scale and icon rotation entirely under reduced motion', () => {
+    // ADR 0003 票⑧补充条款的开关侧执法:RM 白名单只禁 transform 过渡不禁状态位移,
+    // 按压缩放与日/月旋转在 RM 下都是离散跳位——整体置 none,叙事由 opacity 渐变独任
+    const rm = blocksOf(unscope(withProjectsCss), RM_GUARD);
+    expect(rm).toMatch(/\.theme-toggle:active,\s*\.icon\s*\{[^{}]*transform:\s*none/);
   });
 });
 

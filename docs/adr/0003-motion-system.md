@@ -36,7 +36,9 @@
 
 ### 主题切换同拍（修订票 #5 只写 body 的做法）
 
-凡随主题变化的 color / background-color / border-color，统一 `--dur-ui` ease 同拍；**光晕家族**共用 `--dur-glow` 唯一例外拍（光比纸慢半拍，Lantern 仅有的诗意）——家族成员：光晕本体的 opacity 与颜色（`--glow` 注册为 `@property <color>` 使渐变色可插值，否则暗→亮方向光晕在淡出走完前一帧消失），及强调词微光的 text-shadow。例外的单位是「拍」，不是单个消费者。**同一元素框上不得存在两个不同 duration 的颜色类过渡**（如开关 border 150 / background 200 的撕裂）；属性兼任交互反馈与主题过渡时统一取一值——150/200 之差不可辨，撕裂可辨。机制维持 CSS transition（天然可中断、retarget 不归零），延续票 #5「短、柔、可中断」。
+凡随主题变化的 color / background-color / border-color，统一 `--dur-ui` ease 同拍；**光晕家族**共用 `--dur-glow` 唯一例外拍（光比纸慢半拍，Lantern 仅有的诗意）——家族成员（票⑩改判后）：光晕本体的 opacity（渐变色为常量，不参与插值），及强调词微光的 text-shadow（`--glow` 注册为 `@property <color>`，供 RM 下微光颜色插值）。例外的单位是「拍」，不是单个消费者。**同一元素框上不得存在两个不同 duration 的颜色类过渡**（如开关 border 150 / background 200 的撕裂）；属性兼任交互反馈与主题过渡时统一取一值——150/200 之差不可辨，撕裂可辨。机制维持 CSS transition（天然可中断、retarget 不归零），延续票 #5「短、柔、可中断」。
+
+➡️ 修订（2026-07-20，票⑩）：**光晕本体退出颜色插值**——orb 渐变色改常量（= 暗色 `--glow` 终值 `rgba(245 184 76 / 0.16)`），transition 仅 opacity 单通道：静态模糊层缓存为合成器纹理，主题切换零逐帧 paint；「暗→亮一帧消失」因颜色不再翻转而构造性根除，orb 不再依赖 `@property` 注册救硬切。`@property --glow` 注册**保留**，唯一消费者为强调词微光：text-shadow 半径改常量 24px，可见性全交 `--glow` alpha（`--glow-strength` 该处消费删除，0002 语义超载减一）；RM 下微光渐隐走 `--glow` 白名单槽（0.2s）≠ 家族 0.3s 拍——已判不可辨，豁免。光晕家族自此成员：orb 的 opacity、强调词微光的 text-shadow。
 
 **升级条件**：若「新元素漏加主题过渡」类缺陷累计再发两次，机制升级为 View Transition 250ms crossfade（一条代码路径快照整页、观感不变——Apple 派的结构批评在此留档）；届时须复验连点 skip-to-end 的可接受度并修订本条。
 
@@ -47,6 +49,8 @@
 ### 按压节拍
 
 `:active` 必须写**完整 transform 合成**（如 `translateY(-2px) scale(0.99)`），禁止部分覆写；press `--dur-press`、release `--dur-ui`（快下慢回）。hover 专属效果（位移、变色）一律进 `(hover: hover)`——实现统一写作 `(hover: hover) and (pointer: fine)`（加严：电视/主机类「可悬停但粗指针」设备也按触屏对待），触屏不留 sticky 态；此守卫自票⑨起覆盖全站（卡片、主题开关、页脚链接）。补充（2026-07-19，票⑧）：reduced-motion 下交互位移/形变**整体不作用**（`transform: none`，同 hero 入场去位移的先例）——分级 RM 的白名单只禁过渡不禁状态位移，离散跳位对 RM 用户是无收益的闪变；hover 反馈由 border 变色与昼影浮现（皆在白名单内）承担。
+
+➡️ 修订（2026-07-20，票⑩）：本条在开关（ThemeToggle）补作业落地——基态 transform 槽归 `--dur-ui`/`--ease-out`，`:active` 逐槽覆写 duration（照卡片先例），按压深度 `scale(0.96)`（0.95–0.97 区间截图对比定稿；旧值 0.92 在 44px 圆钮上过深，与卡片 0.99 的克制人格失调）；图标旋转曲线一并归 `--ease-out`。票⑧ RM 补充条款的条款面与执法面（单测 + 双跑）同步从卡片扩展到开关与图标（`.theme-toggle:active` 与 `.icon` 均 `transform: none`——可见图标旋转恒 0°，不受影响）。
 
 ## 否决清单（裁决定稿，复议唯一入口：/prototype + ADR）
 

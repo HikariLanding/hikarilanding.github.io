@@ -3,9 +3,12 @@
    1) 声明层:自设色元素的颜色类过渡都在 0.2s;光晕家族 0.3s
    2) 行为层:页内翻转主题,rAF 逐帧采样——颜色/光晕渐变确实在插值,不是硬切
    3) RM 层:白名单生效、hero 降级 fade-in、卡片 border/background 槽位同拍
-   4) 按压层(票⑧):CDP 真实鼠标驱动 hover→press→release,逐帧采 transform——
-      按下快于回弹、抬升全程锁定(无坠落/跳变)、昼影亮色浮现暗色为 none;
-      RM 下卡片交互 transform 整体不作用(置 none),阴影浮现(opacity 白名单内)保留
+   4) 按压层(票⑧卡片、票⑩扩展到开关):CDP 真实鼠标驱动 hover→press→release,
+      逐帧采 transform——按下快于回弹、抬升全程锁定(无坠落/跳变)、昼影亮色浮现暗色为 none;
+      RM 下交互 transform 整体不作用(置 none),阴影浮现(opacity 白名单内)保留;
+      开关相:press 明显快于 release,RM 下开关与图标全程无离散跳位,
+      normal 下松开触发换主题,顺带验图标旋转确实在插值
+   5) 光晕单通道(票⑩):orb 渐变为常量色(样本全程逐帧比对不变),插值只走 opacity
    用法:HIKARI_REPOS_FIXTURE=$PWD/test/fixtures/repos.json npx astro build
         && node scripts/verify-motion.mjs
    踩坑记录(改动前先读):
@@ -66,7 +69,9 @@ addEventListener('load', function () {
       sub: cs('.sub', 'color'),
       cardBg: cs('.card', 'backgroundColor'),
       toggleBorder: cs('.theme-toggle', 'borderTopColor'),
-      orbBg: cs('.glow-orb', 'backgroundImage')
+      /* 票⑩单通道:orbBg 采来断言「全程不变」,插值断言移到 orbOpacity */
+      orbBg: cs('.glow-orb', 'backgroundImage'),
+      orbOpacity: cs('.glow-orb', 'opacity')
     };
   }
   var card = document.querySelector('.card');
@@ -78,11 +83,41 @@ addEventListener('load', function () {
     return;
   }
   var result = {
-    declared: styles(), start: colors(), samples: [], press: [],
+    declared: styles(), start: colors(), samples: [], press: [], togglePress: [],
     prefersDark: matchMedia('(prefers-color-scheme: dark)').matches,
     hoverCapable: matchMedia('(hover: hover) and (pointer: fine)').matches,
     shadowAtLoad: getComputedStyle(card, '::after').boxShadow
   };
+  /* 按压相共用的逐帧采样循环:snap() 出一帧样本,采满 T.end 后交给 done() */
+  function sampleFor(arr, snap, done) {
+    var t0 = performance.now();
+    function tick() {
+      var t = performance.now() - t0;
+      var s = snap();
+      s.t = Math.round(t);
+      arr.push(s);
+      if (t < ${T.end}) { requestAnimationFrame(tick); return; }
+      done();
+    }
+    requestAnimationFrame(tick);
+  }
+  /* 开关按压相(票⑩):与卡片相同的三事件时间轴;松开的 click 会翻主题——不拦,
+     normal 跑顺带采到图标旋转插值,RM 跑顺带证明翻主题也不产生 transform 跳位 */
+  function togglePhase() {
+    var toggle = document.querySelector('.theme-toggle');
+    var icon = document.querySelector('.icon-sun');
+    var rect = toggle.getBoundingClientRect();
+    fetch('/toggle-press-start', {
+      method: 'POST',
+      body: JSON.stringify({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 })
+    }).then(function () {
+      sampleFor(result.togglePress, function () {
+        return { tf: getComputedStyle(toggle).transform, icon: getComputedStyle(icon).transform };
+      }, function () {
+        fetch('/report', { method: 'POST', body: JSON.stringify(result) });
+      });
+    });
+  }
   function pressPhase() {
     card.addEventListener('click', function (e) { e.preventDefault(); });
     card.scrollIntoView({ block: 'center' });
@@ -93,18 +128,9 @@ addEventListener('load', function () {
         method: 'POST',
         body: JSON.stringify({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 })
       }).then(function () {
-        var t0 = performance.now();
-        function tick() {
-          var t = performance.now() - t0;
-          result.press.push({
-            t: Math.round(t),
-            tf: getComputedStyle(card).transform,
-            o: getComputedStyle(card, '::after').opacity
-          });
-          if (t < ${T.end}) { requestAnimationFrame(tick); return; }
-          fetch('/report', { method: 'POST', body: JSON.stringify(result) });
-        }
-        requestAnimationFrame(tick);
+        sampleFor(result.press, function () {
+          return { tf: getComputedStyle(card).transform, o: getComputedStyle(card, '::after').opacity };
+        }, togglePhase);
       });
     }); });
   }
@@ -196,8 +222,9 @@ async function run(rmFlag) {
       pending.set(url, resolve);
       setTimeout(() => reject(new Error(`${url} timeout (${tag} run)`)), ms);
     });
-  const reportP = awaitPost('/report', 25_000);
+  const reportP = awaitPost('/report', 30_000);
   const pressP = awaitPost('/press-start', 15_000);
+  const togglePressP = awaitPost('/toggle-press-start', 25_000);
   const child = spawn(chrome, [
     '--headless=new',
     '--disable-gpu',
@@ -215,9 +242,8 @@ async function run(rmFlag) {
       throw new Error(rep.error ?? 'probe reported before press-start');
     });
     failFast.catch(() => {}); // 好路径下 race 输家照样 reject,接住免得 unhandled
-    const { x, y } = await Promise.race([pressP, failFast]);
-    // 输入时刻以 /press-start 应答为 0 点,与探针采样时钟对表(局域回环偏差 ≪ 一帧)
-    const mouse = (type, buttons, at) =>
+    // 输入时刻以各相 press-start 应答为 0 点,与探针采样时钟对表(局域回环偏差 ≪ 一帧)
+    const mouse = (type, buttons, at, x, y) =>
       setTimeout(
         () =>
           cdp('Input.dispatchMouseEvent', {
@@ -228,9 +254,13 @@ async function run(rmFlag) {
           }, session).catch((e) => failures.push(`${tag}: ${type} dispatch failed — ${e.message}`)),
         at,
       );
-    mouse('mouseMoved', 0, T.move);
-    mouse('mousePressed', 1, T.press);
-    mouse('mouseReleased', 0, T.release);
+    const pressAt = ({ x, y }) => {
+      mouse('mouseMoved', 0, T.move, x, y);
+      mouse('mousePressed', 1, T.press, x, y);
+      mouse('mouseReleased', 0, T.release, x, y);
+    };
+    pressAt(await Promise.race([pressP, failFast]));
+    pressAt(await Promise.race([togglePressP, failFast]));
     return await reportP;
   } finally {
     child.kill('SIGKILL');
@@ -263,6 +293,37 @@ const parseTf = (s) => {
   return { a: v[0], f: v[5] };
 };
 
+/* scale 按压相位提取与「快下慢回」断言(卡片/开关共用,票⑩收编)。
+   相位边界从轨迹推,不拿输入调度时刻当 0 点(mousePressed 生效实测迟 ~180ms);
+   离站宽(行程 5%)、到站严(行程 2%,≈98% 行程)——按压/回弹同尺量到再比:
+   100ms 曲线 ~58ms、200ms 曲线 ~116ms,±一帧粒度,90/95 界线两边都留裕量 */
+function scaleBeatChecks(P, tag, label, pressed) {
+  const REST = 1;
+  const DEPART = (REST - pressed) * 0.05;
+  const SETTLE = (REST - pressed) * 0.02;
+  const findFrom = (from, pred) => {
+    for (let i = Math.max(from, 0); i < P.length; i++) if (pred(P[i])) return i;
+    return -1;
+  };
+  const iPress = findFrom(0, (s) => s.a < REST - DEPART);
+  const iPressSettle = iPress === -1 ? -1 : findFrom(iPress, (s) => s.a <= pressed + SETTLE);
+  const iRelease = iPressSettle === -1 ? -1 : findFrom(iPressSettle, (s) => s.a > pressed + DEPART);
+  const iReleaseSettle = iRelease === -1 ? -1 : findFrom(iRelease, (s) => s.a >= REST - SETTLE);
+  ok(iPressSettle !== -1, `${tag}: ${label} press never reaches scale(${pressed})`);
+  ok(iReleaseSettle !== -1, `${tag}: ${label} release never settles back to scale(1)`);
+  // 双向 scale 都在插值,不是硬切
+  const between = (s) => s.a > pressed + DEPART && s.a < REST - DEPART;
+  ok(P.some(between), `${tag}: ${label} press scale not interpolating`);
+  ok(iPressSettle !== -1 && findFrom(iPressSettle, between) !== -1,
+    `${tag}: ${label} release scale not interpolating`);
+  const tp = iPressSettle === -1 ? null : P[iPressSettle].t - P[iPress].t;
+  const tr = iReleaseSettle === -1 ? null : P[iReleaseSettle].t - P[iRelease].t;
+  ok(tp !== null && tp <= 90, `${tag}: ${label} press ${tp}ms to 98% settle, want ≈58ms of a 100ms curve`);
+  ok(tr !== null && tr >= 95 && tr <= 300, `${tag}: ${label} release ${tr}ms to 98% settle, want ≈116ms of a 200ms curve`);
+  ok(tp !== null && tr !== null && tp < tr, `${tag}: ${label} press (${tp}ms) not faster than release (${tr}ms)`);
+  return { tp, tr, iPress, findFrom };
+}
+
 /* 按压层断言(票⑧)。normal:hover 抬升→按下→松开全程 f 锁 -2(不坠不跳)、
    scale 双向都在插值、按下 settle 明显快于回弹;RM:transform 只许离散生效 */
 function pressChecks(d, tag, rm) {
@@ -281,22 +342,7 @@ function pressChecks(d, tag, rm) {
     ok(P.some((s) => s.o > 0.05 && s.o < 0.95), `${tag}: shadow reveal lost under reduced motion`);
     return {};
   }
-  /* 相位边界从轨迹推,不拿输入调度时刻当 0 点:mousePressed 从下发到 :active
-     生效实测迟 ~180ms(draggable=false 依旧,非拖拽消歧;mouseMoved ~40ms、
-     mouseReleased ~5ms)。按压/回弹同尺量到 98% 阈值再比:100ms 曲线 ~58ms、
-     200ms 曲线 ~116ms,±一帧粒度,90/95 的界线两边都留了裕量 */
-  const findFrom = (from, pred) => {
-    for (let i = Math.max(from, 0); i < P.length; i++) if (pred(P[i])) return i;
-    return -1;
-  };
-  // scale 相位阈值:离站宽(DEPART)、到站严(SETTLE,≈98% 行程)——按压/回弹同尺才可比
-  const REST = 1, PRESSED = 0.99, DEPART = 0.0005, SETTLE = 0.0002;
-  const iPress = findFrom(0, (s) => s.a < REST - DEPART);
-  const iPressSettle = iPress === -1 ? -1 : findFrom(iPress, (s) => s.a <= PRESSED + SETTLE);
-  const iRelease = iPressSettle === -1 ? -1 : findFrom(iPressSettle, (s) => s.a > PRESSED + DEPART);
-  const iReleaseSettle = iRelease === -1 ? -1 : findFrom(iRelease, (s) => s.a >= REST - SETTLE);
-  ok(iPressSettle !== -1, `${tag}: press never reaches scale(0.99)`);
-  ok(iReleaseSettle !== -1, `${tag}: release never settles back to scale(1)`);
+  const { tp, tr, iPress, findFrom } = scaleBeatChecks(P, tag, 'card', 0.99);
   // hover 抬升在插值,且抬升锁定后直到结束 f 恒 -2:按下不坠、松开不跳——
   // 「先坠 2px 再收缩」通道相撞的行为级否证
   ok(P.slice(0, iPress === -1 ? P.length : iPress).some((s) => s.f < -0.2 && s.f > -1.8),
@@ -305,18 +351,31 @@ function pressChecks(d, tag, rm) {
   const locked = iLift === -1 ? [] : P.slice(iLift);
   ok(locked.length > 0 && locked.every((s) => Math.abs(s.f + 2) < 0.05),
     `${tag}: translateY not held at -2px through press+release (f range ${Math.min(...locked.map((s) => s.f))}..${Math.max(...locked.map((s) => s.f))})`);
-  // 双向 scale 都在插值,不是硬切
-  const between = (s) => s.a > PRESSED + DEPART && s.a < REST - DEPART;
-  ok(P.some(between), `${tag}: press scale not interpolating`);
-  ok(iPressSettle !== -1 && findFrom(iPressSettle, between) !== -1,
-    `${tag}: release scale not interpolating`);
-  const tp = iPressSettle === -1 ? null : P[iPressSettle].t - P[iPress].t;
-  const tr = iReleaseSettle === -1 ? null : P[iReleaseSettle].t - P[iRelease].t;
-  ok(tp !== null && tp <= 90, `${tag}: press ${tp}ms to 98% settle, want ≈58ms of a 100ms curve`);
-  ok(tr !== null && tr >= 95 && tr <= 300, `${tag}: release ${tr}ms to 98% settle, want ≈116ms of a 200ms curve`);
   // 昼影浮现:hover 后 ::after opacity 0→1,且在插值
   ok(P.some((s) => s.o > 0.05 && s.o < 0.95), `${tag}: shadow reveal not interpolating`);
   ok(P[P.length - 1].o > 0.99, `${tag}: shadow not fully revealed at end (opacity ${P[P.length - 1].o})`);
+  return { tp, tr };
+}
+
+/* 开关按压层断言(票⑩)。normal:scale 1→0.96→1 双向插值、按下 settle 明显快于回弹,
+   松开的 click 翻主题——顺带验图标旋转(90°↔0°,矩阵 a=cosθ)确实在插值;
+   RM:开关与图标 transform 全程恒 none——按压缩放与日/月旋转的离散跳位都不许出现 */
+function togglePressChecks(d, tag, rm) {
+  const P = (d.togglePress ?? []).map((s) => ({ t: s.t, tf: s.tf, icon: s.icon, ...parseTf(s.tf) }));
+  ok(P.length > 40, `${tag}: too few toggle press samples (${P.length})`);
+  if (P.length === 0) return {};
+  if (process.env.HIKARI_DEBUG)
+    console.log(`[${tag} toggle]`, P.map((s) => `${s.t}:${s.a.toFixed(4)}/${s.icon}`).join(' '));
+  if (rm) {
+    const moved = P.filter((s) => s.tf !== 'none' || s.icon !== 'none');
+    ok(moved.length === 0,
+      `${tag}: toggle/icon transform active under reduced motion (first: ${JSON.stringify(moved[0])})`);
+    return {};
+  }
+  const { tp, tr } = scaleBeatChecks(P, tag, 'toggle', 0.96);
+  // 图标旋转插值:click 翻主题后 cosθ 必须出现中间值,不是 90°↔0° 硬跳
+  ok(P.some((s) => { const a = parseTf(s.icon).a; return a > 0.05 && a < 0.95; }),
+    `${tag}: icon rotation not interpolating after toggle click`);
   return { tp, tr };
 }
 
@@ -332,16 +391,20 @@ for (const [name, d] of Object.entries(n.declared)) {
 ok(durOf(n.declared.orb, 'opacity') === '0.3s', `normal: orb opacity = ${durOf(n.declared.orb, 'opacity')}, want 0.3s`);
 ok(durOf(n.declared.h1em, 'text-shadow') === '0.3s', `normal: h1em text-shadow = ${durOf(n.declared.h1em, 'text-shadow')}, want 0.3s`);
 ok(durOf(n.declared.h1em, 'color') === '0.2s', `normal: h1em color = ${durOf(n.declared.h1em, 'color')}, want 0.2s`);
-// 票⑧起 transform 槽位归按压回弹拍 --dur-ui(hover 抬升随基态并入)
+// 票⑧起 transform 槽位归按压回弹拍 --dur-ui(hover 抬升随基态并入);票⑩开关对齐同拍
 ok(durOf(n.declared.card, 'transform') === '0.2s', `normal: card transform = ${durOf(n.declared.card, 'transform')}, want 0.2s`);
+ok(durOf(n.declared.toggle, 'transform') === '0.2s', `normal: toggle transform = ${durOf(n.declared.toggle, 'transform')}, want 0.2s`);
+// 票⑩单通道:orb 只许过渡 opacity——渐变色是常量,不再进过渡表
+ok(n.declared.orb.tp === 'opacity', `normal: orb transition-property = "${n.declared.orb.tp}", want opacity only`);
 ok(n.declared.sub.anim.includes('fade-up') && n.declared.sub.animDur === '0.6s',
   `normal: hero entry = ${n.declared.sub.anim} ${n.declared.sub.animDur}, want fade-up 0.6s`);
-for (const k of ['sub', 'cardBg', 'toggleBorder', 'orbBg']) {
+for (const k of ['sub', 'cardBg', 'toggleBorder', 'orbOpacity']) {
   const end = n.samples[n.samples.length - 1].c[k];
   ok(n.start[k] !== end, `normal: ${k} theme flip changed nothing (${n.start[k]}); prefersDark=${n.prefersDark}`);
   ok(interpolates(n, k), `normal: ${k} not interpolating — start ${n.start[k]} / ${series(n, k)}`);
 }
 const nPress = pressChecks(n, 'normal', false);
+const nToggle = togglePressChecks(n, 'normal', false);
 
 /* ---- reduced-motion run ---- */
 const r = await run(true);
@@ -361,11 +424,18 @@ for (const name of ['card', 'toggle']) {
   ok(slot('background-color') === slot('border-color'),
     `rm: ${name} slot tear — background ${slot('background-color')} vs border ${slot('border-color')}`);
 }
-// RM 行为层:颜色过渡保留——切主题仍是插值,不是硬切
-for (const k of ['sub', 'cardBg', 'toggleBorder', 'orbBg']) {
+// RM 行为层:颜色/opacity 过渡保留——切主题仍是插值,不是硬切
+for (const k of ['sub', 'cardBg', 'toggleBorder', 'orbOpacity']) {
   ok(interpolates(r, k), `rm: ${k} not interpolating under RM — start ${r.start[k]} / ${series(r, k)}`);
 }
 pressChecks(r, 'rm', true);
+togglePressChecks(r, 'rm', true);
+
+/* ---- 光晕单通道(票⑩,两跑共验):orb 渐变全程恒常量色——零逐帧 paint 的构造性证据 ---- */
+for (const [tag, d] of [['normal', n], ['rm', r]]) {
+  ok(d.samples.every((s) => s.c.orbBg === d.start.orbBg),
+    `${tag}: orb gradient repainted during theme flip — want a constant colour, opacity-only channel`);
+}
 
 /* ---- 昼影主题面(两跑共验):亮色实影、暗色 IACVT 回落 none ---- */
 for (const [tag, d] of [['normal', n], ['rm', r]]) {
@@ -386,5 +456,6 @@ console.log('PASS: normal + reduced-motion double-run');
 console.log(`  normal .sub color: ${n.start.sub} → ${series(n, 'sub')}`);
 console.log(`  rm     .sub color: ${r.start.sub} → ${series(r, 'sub')}`);
 console.log(`  rm card td cycle: [${r.declared.card.td}] → bg/border same slot ✓`);
-console.log(`  press settle ${nPress.tp}ms → release settle ${nPress.tr}ms (快下慢回 ✓)`);
+console.log(`  card press settle ${nPress.tp}ms → release ${nPress.tr}ms (快下慢回 ✓)`);
+console.log(`  toggle press settle ${nToggle.tp}ms → release ${nToggle.tr}ms (快下慢回 ✓)`);
 process.exit(0);
